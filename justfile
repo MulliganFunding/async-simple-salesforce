@@ -21,7 +21,6 @@ sync *args:
 
 # Release this project to PyPI
 release:
-    #!/bin/bash -eux
     uv run python -m build
     uv run python -m twine check dist/*
     uv run python -m twine upload dist/*
