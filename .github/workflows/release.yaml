@@ -8,8 +8,7 @@ jobs:
     name: "Publish release"
     runs-on: "ubuntu-latest"
 
-    environment:
-      name: PyPi
+    environment: release
 
     steps:
       - uses: taiki-e/install-action@v2
