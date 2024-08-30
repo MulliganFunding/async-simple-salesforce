@@ -2,7 +2,6 @@ name: Tests
 on:
   pull_request:
     branches:
-      - master
       - main
     paths-ignore:
       - 'docs/**'
@@ -27,32 +26,21 @@ jobs:
     steps:
       - uses: taiki-e/install-action@v2
         with:
-          tool: just
+          tool: just,uv
       - uses: "actions/checkout@v3"
       - uses: "actions/setup-python@v4"
         with:
           python-version: "${{ matrix.python-version }}"
-      - name: Set up Poetry cache for Python dependencies
-        uses: actions/cache@v3
-        if: startsWith(runner.os, 'Linux')
-        with:
-          path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: ${{ runner.os }}-poetry-async-simple-sf
-      - name: "Install poetry"
-        run: "pip install poetry"
-      - name: "Configure poetry"
-        run: "poetry config virtualenvs.create false --local"
-      - name: "Run poetry install deps"
+      - name: "Run install deps"
         run: "just bootstrap"
       - name: "Run code quality checks"
         run: "just check"
-      - name: "Run code quality checks"
+      - name: "Run tests"
         run: "just ci-test ${COVERAGE_DIR}"
 
       # Publish code coverage results
       - name: Code Coverage Report
-        if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest' }}
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
           filename: coverage.xml
@@ -66,7 +54,7 @@ jobs:
           thresholds: '70 80'
 
       - name: Add Coverage PR Comment
-        if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           recreate: true
@@ -74,7 +62,7 @@ jobs:
 
       # Publish junit test result
       - name: Publish Test Report
-        if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest' }}
         uses: mikepenz/action-junit-report@v4
         with:
           report_paths: ${{ format('/tmp/coverage/{0}/*junit.xml', github.run_id) }}

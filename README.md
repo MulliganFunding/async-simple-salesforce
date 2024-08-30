@@ -53,4 +53,4 @@ async def run_query(sf_client, opportunity_name: str):
 
 You can typically call *any* method available on the synchronous `Salesforce` object as an async method with an `await` added.
 
-See upstream docs continued below.
+See upstream docs continued [here](./README.rst).

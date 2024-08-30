@@ -5,32 +5,38 @@ _default:
 
 # Install cargo plugins used by this project
 bootstrap:
-    poetry install --no-root --with dev
+    uv venv --python 3.12
 
 # Build the project as a package (poetry build)
 build *args:
-    poetry build
+    uv run python -m build {{args}}
 
-lockfile:
-    poetry lockfile --no-update
+lock:
+    uv lock
 
 update *args:
-    poetry update {{args}}
+    uv sync {{args}}
+
+release:
+    #!/bin/bash -eux
+    uv run python -m build
+    uv run python -m twine check dist/*
+    uv run python -m twine upload dist/*
 
 format:
-    poetry run ruff format simple_salesforce tests
+    uv run ruff format simple_salesforce tests
 
 # Run code quality checks
 check:
     #!/bin/bash -eux
-    poetry run ruff check simple_salesforce tests
+    uv run ruff check simple_salesforce tests
 
 # Run all tests locally
 test *args:
     #!/bin/bash -eux
-    poetry run pytest {{args}}
+    uv run pytest {{args}}
 
 # Run all tests locally
 ci-test coverage_dir='./coverage':
     #!/bin/bash -eux
-    poetry run pytest --cov-report xml --junitxml={{coverage_dir}}/unittest.junit.xml
+    uv run pytest --cov-report xml --junitxml={{coverage_dir}}/unittest.junit.xml
