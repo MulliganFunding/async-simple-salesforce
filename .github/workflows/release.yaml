@@ -24,10 +24,7 @@ jobs:
       - name: "Run install deps"
         run: "just bootstrap"
       - name: "Build and release"
-        run: |
-          poetry build
-          uv run python -m twine check dist/*
-          uv run python -m twine upload dist/*
+        run: "just release"
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}

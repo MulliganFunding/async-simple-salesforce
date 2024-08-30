@@ -3,26 +3,30 @@
 _default:
     just --list
 
-# Install cargo plugins used by this project
+# Create a virtual environment and install dependencies
 bootstrap:
     uv venv --python 3.12
 
-# Build the project as a package (poetry build)
+# Build the project as a package
 build *args:
     uv run python -m build {{args}}
 
+# Update the lock file
 lock:
     uv lock
 
-update *args:
+# Make sure all dependencies are up to date in env
+sync *args:
     uv sync {{args}}
 
+# Release this project to PyPI
 release:
     #!/bin/bash -eux
     uv run python -m build
     uv run python -m twine check dist/*
     uv run python -m twine upload dist/*
 
+# Run the formatter (`ruff`)
 format:
     uv run ruff format simple_salesforce tests
 
@@ -31,7 +35,7 @@ check:
     #!/bin/bash -eux
     uv run ruff check simple_salesforce tests
 
-# Run code quality checks
+# Run mypy checks
 check-types:
     #!/bin/bash -eux
     uv run mypy simple_salesforce
