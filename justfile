@@ -4,8 +4,8 @@ _default:
     just --list
 
 # Create a virtual environment and install dependencies
-bootstrap:
-    uv venv --python 3.12
+bootstrap default="3.12":
+    uv venv --python {{default}}
 
 # Build the project as a package
 build *args:
