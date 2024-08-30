@@ -31,6 +31,11 @@ check:
     #!/bin/bash -eux
     uv run ruff check simple_salesforce tests
 
+# Run code quality checks
+check-types:
+    #!/bin/bash -eux
+    uv run mypy simple_salesforce
+
 # Run all tests locally
 test *args:
     #!/bin/bash -eux

@@ -1,6 +1,6 @@
 [project]
 name = "async-simple-salesforce"
-version = "1.12.6a2"
+version = "1.12.6a3"
 description = "Async fork of simple-salesforce"
 authors = [{name="Erik Aker", email="eaker@mulliganfunding.com"}]
 license = {file = "LICENSE.txt"}
