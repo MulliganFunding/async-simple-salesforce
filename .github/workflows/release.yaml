@@ -12,14 +12,15 @@ jobs:
       name: PyPi
 
     steps:
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
       - uses: "actions/checkout@v3"
       - uses: "actions/setup-python@v4"
         with:
           python-version: 3.12
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: just,uv
-
+      - name: "Install uv"
+        run: "pip install uv"
       - name: "Run install deps"
         run: "just bootstrap"
       - name: "Build and release"
