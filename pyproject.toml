@@ -1,6 +1,5 @@
 [project]
 name = "async-simple-salesforce"
-version = "1.12.6a4"
 description = "Async fork of simple-salesforce"
 authors = [{name="Erik Aker", email="eaker@mulliganfunding.com"}]
 license = {file = "LICENSE.txt"}
@@ -44,6 +43,9 @@ where = ["simple_salesforce"]
 
 [tool.setuptools.package-data]
 mypkg = ["*.wsdl", "*.rst", "*.txt", "*.in", "*.md"]
+
+[tool.versioningit]
+# Defaults
 
 [project.urls]
 Repository = "https://github.com/MulliganFunding/async-simple-salesforce"
