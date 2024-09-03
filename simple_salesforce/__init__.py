@@ -12,4 +12,4 @@ from .exceptions import (SalesforceAuthenticationFailed, SalesforceError,
 from .login import SalesforceLogin
 from .format import format_soql, format_external_id
 
-__version__ = version
+__version__ = version("async-simple-salesforce")
