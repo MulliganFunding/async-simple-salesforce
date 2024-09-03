@@ -5,11 +5,11 @@ This is an **async fork** of the library [simple-salesforce](https://github.com/
 This fork is available on PyPI and can be installed like this:
 
 ```sh
-$ pip install "async-simple-salesforce==1.12.6a2"
+$ pip install "async-simple-salesforce==1.12.6a3"
 
 ```
 
-## Versions
+## Versioning
 
 Versioning for this library tracks the upstream version; i.e., when a new version of upstream has been published, it will be integrated into this codebase and released under the *same* version identifier, with one notable difference: we add *alpha* or *beta* identifiers to make it more obvious that this fork has not been around as long as upstream and that it has also not seen the same wide-scale usage that upstream has.
 
@@ -75,3 +75,7 @@ Available recipes:
     test *args                        # Run all tests locally
 
 ```
+
+---
+
+The upstream README is located [here](./README.rst)
