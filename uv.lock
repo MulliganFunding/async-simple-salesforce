@@ -27,8 +27,8 @@ wheels = [
 
 [[package]]
 name = "async-simple-salesforce"
-version = "1.12.6a2"
-source = { virtual = "." }
+version = "1.12.6a3"
+source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "httpx" },

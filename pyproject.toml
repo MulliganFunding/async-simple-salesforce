@@ -1,6 +1,6 @@
 [project]
 name = "async-simple-salesforce"
-version = "1.12.6a3"
+version = "1.12.6a4"
 description = "Async fork of simple-salesforce"
 authors = [{name="Erik Aker", email="eaker@mulliganfunding.com"}]
 license = {file = "LICENSE.txt"}
@@ -32,6 +32,16 @@ dependencies = [
   "zeep",
 ]
 
+[build-system]
+requires = ["setuptools >= 63.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["simple_salesforce"]
+
+[tool.setuptools.package-data]
+mypkg = ["*.wsdl", "*.rst", "*.txt", "*.in", "*.md"]
+
 [project.urls]
 Repository = "https://github.com/MulliganFunding/async-simple-salesforce"
 Documentation = "https://github.com/MulliganFunding/async-simple-salesforce/blob/main/README.md"
@@ -39,7 +49,7 @@ Changelog = "https://github.com/MulliganFunding/async-simple-salesforce/blob/mai
 Releases = "https://github.com/MulliganFunding/async-simple-salesforce/releases"
 
 [tool.pytest.ini_options]
-minversion = "7.0"
+minversion = "8.0"
 asyncio_mode = "auto"
 pythonpath = "."
 addopts = "--cov=simple_salesforce --cov-report html"
