@@ -5,11 +5,11 @@ This is an **async fork** of the library [simple-salesforce](https://github.com/
 This fork is available on PyPI and can be installed like this:
 
 ```sh
-$ pip install "async-simple-salesforce==1.12.6a1"
+$ pip install "async-simple-salesforce==1.12.6a3"
 
 ```
 
-## Versions
+## Versioning
 
 Versioning for this library tracks the upstream version; i.e., when a new version of upstream has been published, it will be integrated into this codebase and released under the *same* version identifier, with one notable difference: we add *alpha* or *beta* identifiers to make it more obvious that this fork has not been around as long as upstream and that it has also not seen the same wide-scale usage that upstream has.
 
@@ -53,4 +53,29 @@ async def run_query(sf_client, opportunity_name: str):
 
 You can typically call *any* method available on the synchronous `Salesforce` object as an async method with an `await` added.
 
-See upstream docs continued below.
+See upstream docs continued [here](./README.rst).
+
+## How to Contribute
+
+This project uses `uv` to manage dependencies. In addition, a `justfile` has been provided to aid contributors. If you have `uv` and `just` in your environment, you can get started with `just bootstrap`. You can run the test suite with `just test` and code quality checks with `just test`. For more common recipes, run `just`:
+
+```sh
+❯ just
+just --list
+Available recipes:
+    bootstrap                         # Create a virtual environment and install dependencies
+    build *args                       # Build the project as a package
+    check                             # Run code quality checks
+    check-types                       # Run mypy checks
+    ci-test coverage_dir='./coverage' # Run all tests locally
+    format                            # Run the formatter (`ruff`)
+    lock                              # Update the lock file
+    release                           # Release this project to PyPI
+    sync *args                        # Make sure all dependencies are up to date in env
+    test *args                        # Run all tests locally
+
+```
+
+---
+
+The upstream README is located [here](./README.rst)
