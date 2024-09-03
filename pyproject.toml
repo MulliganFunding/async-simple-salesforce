@@ -45,7 +45,7 @@ where = ["."]
 mypkg = ["*.wsdl", "*.rst", "*.txt", "*.in", "*.md"]
 
 [tool.versioningit]
-# Defaults
+default-version = "1.0.0+unknown"
 
 [project.urls]
 Repository = "https://github.com/MulliganFunding/async-simple-salesforce"
