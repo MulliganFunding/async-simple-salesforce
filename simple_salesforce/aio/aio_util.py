@@ -19,22 +19,18 @@ from simple_salesforce.util import Headers, Proxies
 T = TypeVar('T')
 
 
-def create_session_factory(
-    proxies: Proxies | None = None, timeout: Optional[int] = None
-) -> Callable[[], httpx.AsyncClient]:
+def create_session_factory(**kwargs) -> Callable[[], httpx.AsyncClient]:
     """
     Convenience function for repeatedly returning the properly constructed
     AsyncClient.
     """
-    transport = httpx.AsyncHTTPTransport(retries=2)
-    if proxies and timeout:
-        return partial(httpx.AsyncClient, proxies=proxies, timeout=timeout, transport=transport)
-    if proxies:
-        return partial(httpx.AsyncClient, proxies=proxies, transport=transport)
-    if timeout:
-        return partial(httpx.AsyncClient, timeout=timeout, transport=transport)
+    expected_keywords = ["proxies", "timeout", "transport"]
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in expected_keywords and v is not None}
 
-    return partial(httpx.AsyncClient, transport=transport)
+    if filtered_kwargs:
+        return partial(httpx.AsyncClient, **filtered_kwargs)
+
+    return partial(httpx.AsyncClient)
 
 
 async def call_salesforce(
