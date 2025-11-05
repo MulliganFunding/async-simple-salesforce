@@ -13,7 +13,7 @@ from simple_salesforce.exceptions import (
     SalesforceRefusedRequest,
     SalesforceResourceNotFound,
 )
-from simple_salesforce.util import Headers, Proxies
+from simple_salesforce.util import Headers
 
 
 T = TypeVar('T')
