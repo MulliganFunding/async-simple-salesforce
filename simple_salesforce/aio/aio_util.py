@@ -26,14 +26,15 @@ def create_session_factory(
     Convenience function for repeatedly returning the properly constructed
     AsyncClient.
     """
+    transport = httpx.AsyncHTTPTransport(retries=2)
     if proxies and timeout:
-        return partial(httpx.AsyncClient, proxies=proxies, timeout=timeout)
+        return partial(httpx.AsyncClient, proxies=proxies, timeout=timeout, transport=transport)
     if proxies:
-        return partial(httpx.AsyncClient, proxies=proxies)
+        return partial(httpx.AsyncClient, proxies=proxies, transport=transport)
     if timeout:
-        return partial(httpx.AsyncClient, timeout=timeout)
+        return partial(httpx.AsyncClient, timeout=timeout, transport=transport)
 
-    return partial(httpx.AsyncClient)
+    return partial(httpx.AsyncClient, transport=transport)
 
 
 async def call_salesforce(
