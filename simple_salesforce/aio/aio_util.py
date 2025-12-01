@@ -13,25 +13,22 @@ from simple_salesforce.exceptions import (
     SalesforceRefusedRequest,
     SalesforceResourceNotFound,
 )
-from simple_salesforce.util import Headers, Proxies
+from simple_salesforce.util import Headers
 
 
 T = TypeVar('T')
 
 
-def create_session_factory(
-    proxies: Proxies | None = None, timeout: Optional[int] = None
-) -> Callable[[], httpx.AsyncClient]:
+def create_session_factory(**kwargs) -> Callable[[], httpx.AsyncClient]:
     """
     Convenience function for repeatedly returning the properly constructed
     AsyncClient.
     """
-    if proxies and timeout:
-        return partial(httpx.AsyncClient, proxies=proxies, timeout=timeout)
-    if proxies:
-        return partial(httpx.AsyncClient, proxies=proxies)
-    if timeout:
-        return partial(httpx.AsyncClient, timeout=timeout)
+    expected_keywords = ["proxies", "timeout", "transport"]
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in expected_keywords and v is not None}
+
+    if filtered_kwargs:
+        return partial(httpx.AsyncClient, **filtered_kwargs)
 
     return partial(httpx.AsyncClient)
 

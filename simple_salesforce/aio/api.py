@@ -65,6 +65,7 @@ async def build_async_salesforce_client(
     parse_float: Optional[Callable[[str], Any]] = None,
     object_pairs_hook: Optional[Callable[[List[Tuple[Any, Any]]], Any]] = OrderedDict,
     request_timeout_seconds: Optional[int] = None,
+    transport: httpx.AsyncHTTPTransport | None = None
 ) -> "AsyncSalesforce":
     """
     Reasons for this builder function:
@@ -122,8 +123,9 @@ async def build_async_salesforce_client(
     * object_pairs_hook -- Function to parse ordered list of pairs in json.
                            To use python 'dict' change it to None or dict.
     * request_timeout_seconds -- Optional request-timeout setting in seconds.
+    * transport -- Optional httpx transport instance for advanced customization of HTTP handling.
     """
-    session_factory = create_session_factory(proxies, timeout=request_timeout_seconds)
+    session_factory = create_session_factory(proxies=proxies, timeout=request_timeout_seconds, transport=transport)
 
     if domain is None:
         domain = "login"
@@ -340,7 +342,7 @@ class AsyncSalesforce:
         # override custom session proxies dance
         if not session_factory:
             session_factory = create_session_factory(
-                self._proxies, timeout=self.request_timeout_seconds
+                proxies=self._proxies, timeout=self.request_timeout_seconds
             )
         self.session_factory = session_factory
 

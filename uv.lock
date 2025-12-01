@@ -27,7 +27,7 @@ wheels = [
 
 [[package]]
 name = "async-simple-salesforce"
-version = "1.12.6a3"
+version = "1.12.6a4+d20251105"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
