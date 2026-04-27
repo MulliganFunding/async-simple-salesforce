@@ -200,7 +200,7 @@ async def AsyncSalesforceLogin(
             async with aiofiles.open(privatekey_file, "rb") as key_file:
                 key = await key_file.read()
         else:
-            key = privatekey  # type: ignore[assignment]
+            key = privatekey or ""
 
         assertion = jwt.encode(payload, key, algorithm="RS256")
 

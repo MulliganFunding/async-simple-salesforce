@@ -223,8 +223,8 @@ class SfdcMetadataApi:
         self._client = Client(
             wsdl_path.absolute().as_uri(),
             settings=Settings(
-                strict=False,
-                xsd_ignore_sequence_order=True
+                strict=False,  # type: ignore
+                xsd_ignore_sequence_order=True  # type: ignore
             ))  # type: ignore[no-untyped-call]
         self._service = self._client.create_service(
             "{http://soap.sforce.com/2006/04/metadata}MetadataBinding",
@@ -354,11 +354,11 @@ class SfdcMetadataApi:
         :return:
         :rtype:
         """
-        if hasattr(zipfile, 'read') and hasattr(zipfile, 'seek'):
+        if isinstance(zipfile, str):
+            raw = Path(zipfile).read_bytes()
+        else:
             zipfile.seek(0)
             raw = zipfile.read()
-        else:
-            raw = Path(zipfile).read_bytes()
         return b64encode(raw).decode()
 
     # pylint: disable=broad-exception-raised
@@ -625,7 +625,7 @@ class SfdcMetadataApi:
         zipfile_base64 = result.findtext(
             'mt:zipFile', None, self._XML_NAMESPACES
         ) or None
-        zipfile = b64decode(zipfile_base64)  # type: ignore[arg-type]
+        zipfile = b64decode(zipfile_base64 or b"")  # type: ignore[arg-type]
 
         return state, error_message, messages, zipfile
 

@@ -256,7 +256,7 @@ def async_retry_expired_session(
         raise ValueError(
             (
                 "async_retry_expired_session can only decorate async "
-                f"functions. {async_fn.__name__}"
+                f"functions. {getattr(async_fn, '__name__', repr(async_fn))}"
             )
         )
 
@@ -285,8 +285,8 @@ class AsyncSalesforce:
     for easy use of the Salesforce REST API. All http network calls are async.
     """
 
-    _parse_float = None
-    _object_pairs_hook = OrderedDict
+    _parse_float: Optional[Callable[[str], Any]] = None
+    _object_pairs_hook: Optional[Callable[[List[Tuple[Any, Any]]], Any]] = OrderedDict
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(
@@ -363,7 +363,7 @@ class AsyncSalesforce:
 
         self.api_usage: MutableMapping[str, Usage | PerAppUsage] = {}
         self._parse_float = parse_float
-        self._object_pairs_hook = object_pairs_hook  # type: ignore[assignment]
+        self._object_pairs_hook = object_pairs_hook
         self._mdapi: AsyncSfdcMetadataApi | None = None
 
     @property
@@ -372,8 +372,8 @@ class AsyncSalesforce:
         if not self._mdapi:
             self._mdapi = AsyncSfdcMetadataApi(
                 session_factory=self.session_factory,
-                session_id=self.session_id,
-                instance=self.sf_instance,
+                session_id=self.session_id or "",
+                instance=self.sf_instance or "",
                 metadata_url=self.metadata_url,
                 api_version=self.sf_version,
                 headers=self.headers,
@@ -450,21 +450,21 @@ class AsyncSalesforce:
         # fix to enable serialization
         # (https://github.com/heroku/simple-salesforce/issues/60)
         if name.startswith("__"):
-            return super().__getattr__(name)
+            raise AttributeError(name)
 
         if name == "bulk":
             # Deal with bulk API functions
             return AsyncSFBulkHandler(
-                self.session_id,
+                self.session_id or "",
                 self.bulk_url,
                 self._proxies,
                 session_factory=self.session_factory,
             )
         if name == "bulk2":
             return AsyncSFBulk2Handler(
-                self.session_id,
+                self.session_id or "",
                 self.bulk2_url,
-                self.proxies,
+                self._proxies,
                 session_factory=self.session_factory,
             )
 
@@ -476,7 +476,7 @@ class AsyncSalesforce:
             proxies=self._proxies,
             salesforce=self,
             session_factory=self.session_factory,
-            object_pairs_hook=self._object_pairs_hook,
+            object_pairs_hook=self._object_pairs_hook or OrderedDict,
             parse_float=self._parse_float,
         )
 
@@ -915,8 +915,8 @@ class AsyncSalesforce:
 class AsyncSFType:
     """An interface to a specific type of SObject"""
 
-    _parse_float = None
-    _object_pairs_hook = OrderedDict
+    _parse_float: Optional[Callable[[str], Any]] = None
+    _object_pairs_hook: Optional[Callable[[List[Tuple[Any, Any]]], Any]] = OrderedDict
 
     # pylint: disable=too-many-arguments
     def __init__(
@@ -967,7 +967,7 @@ class AsyncSFType:
         self.name = object_name
         self._proxies = proxies
         self._parse_float = parse_float
-        self._object_pairs_hook = object_pairs_hook  # type: ignore[assignment]
+        self._object_pairs_hook = object_pairs_hook
         self.request_timeout_seconds = request_timeout_seconds
 
         if session is not None:

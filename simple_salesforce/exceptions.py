@@ -1,5 +1,5 @@
 """All exceptions for Simple Salesforce"""
-from typing import Union
+from typing import Any, Union
 
 
 class SalesforceError(Exception):
@@ -13,7 +13,7 @@ class SalesforceError(Exception):
             url: str,
             status: int,
             resource_name: str,
-            content: bytes):
+            content: Any):
         """Initialize the SalesforceError exception
 
         SalesforceError is the base class of exceptions in simple-salesforce

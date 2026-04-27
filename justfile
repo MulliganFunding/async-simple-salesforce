@@ -37,7 +37,7 @@ check:
 # Run mypy checks
 check-types:
     #!/bin/bash -eux
-    uv run mypy simple_salesforce
+    uv run ty check simple_salesforce
 
 # Run all tests locally
 test *args:

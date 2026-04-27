@@ -69,7 +69,7 @@ class SFBulkHandler:
                    object_name: str,
                    dml: str,
                    data: BulkDataAny,
-                   external_id_field: str = None,
+                   external_id_field: Optional[str] = None,
                    batch_size: int = 10000,
                    use_serial: bool = False,
                    bypass_results: bool = False,
@@ -156,7 +156,7 @@ class SFBulkType:
         * external_id_field -- unique identifier field for upsert operations
         """
 
-        payload = {
+        payload: Dict[str, Any] = {
             'operation': operation,
             'object': self.object_name,
             'concurrencyMode': 1 if use_serial else 0,
@@ -704,7 +704,7 @@ class SFBulkType:
                 self,
                 function_name: str,
                 data: BulkDataAny,
-                external_id_field: str = None,
+                external_id_field: Optional[str] = None,
                 batch_size: int = 10000,
                 use_serial: bool = False,
                 bypass_results: bool = False,

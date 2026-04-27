@@ -240,7 +240,7 @@ class AsyncSfdcMetadataApi:
         # The zeep client synchronously loads the wsdl file
         self._client = AsyncClient(
             str(wsdl_path.absolute()),
-            settings=Settings(strict=False, xsd_ignore_sequence_order=True),
+            settings=Settings(strict=False, xsd_ignore_sequence_order=True),  # type: ignore
         )  # type: ignore[no-untyped-call]
         # Odd that we can't create this easily from zeep itself
         self._service: AsyncServiceProxy = AsyncServiceProxy(
@@ -248,7 +248,7 @@ class AsyncSfdcMetadataApi:
             self._client.service._binding,
             address=self.metadata_url,
         )  # type: ignore[no-untyped-call]
-        self._session_header: Element = self._client.get_element(
+        self._session_header: CompoundValue = self._client.get_element(
             "ns0:SessionHeader"  # type: ignore[no-untyped-call]
         )(sessionId=self._session_id)
 

@@ -30,14 +30,17 @@ jobs:
       - uses: "actions/checkout@v3"
       - name: Set up uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      # Set up environment and run code quality checks
+
+        # Set up environment and run code quality checks
       - name: "Run install deps"
         run: "just bootstrap ${{ matrix.python-version }}"
+
+      # Code quality checks
       - name: "Run code quality checks"
         run: "just check"
-      # Enable when passing
-      # - name: "Run code quality checks"
-      #   run: "just check-types"
+      - name: "Run code quality checks"
+        run: "just check-types"
+      # Test suite
       - name: "Run tests"
         run: "just ci-test ${COVERAGE_DIR}"
       # Publish code coverage results

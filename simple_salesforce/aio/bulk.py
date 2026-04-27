@@ -5,7 +5,7 @@ from collections import OrderedDict
 from functools import partial
 import json
 import logging
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Union
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Sequence, Union
 
 import httpx
 from more_itertools import chunked
@@ -165,7 +165,7 @@ class AsyncSFBulkType:
         * external_id_field -- unique identifier field for upsert operations
         """
 
-        payload = {
+        payload: Dict[str, Any] = {
             "operation": operation,
             "object": self.object_name,
             "concurrencyMode": 1 if use_serial else 0,
@@ -401,6 +401,7 @@ class AsyncSFBulkType:
 
             # Checks to prevent batch limit
             if batch_size != "auto":
+                assert isinstance(batch_size, int)
                 batch_size = min(batch_size, len(data), 10000)
 
             job = await self._create_job(
@@ -413,6 +414,7 @@ class AsyncSFBulkType:
                     data=data, operation=operation, job=job["id"]
                 )
             else:
+                assert isinstance(batch_size, int)
                 batches = [
                     self._add_batch(job_id=job["id"], data=i, operation=operation)
                     for i in [
@@ -605,7 +607,7 @@ class AsyncSFBulkType:
         if operation == "upsert":
             return await self.upsert(
                 data,
-                external_id_field,
+                external_id_field or "",
                 batch_size=batch_size,
                 use_serial=use_serial,
                 bypass_results=bypass_results,
@@ -618,7 +620,7 @@ class AsyncSFBulkType:
                 bypass_results=bypass_results,
             )
 
-    async def query(self, data: BulkDataStr, lazy_operation: bool = False, wait: int = 5) -> AsyncIterator[Any]:
+    async def query(self, data: BulkDataStr, lazy_operation: bool = False, wait: int = 5) -> Any:
         """bulk query"""
         results = self._bulk_operation(operation="query", data=data, wait=wait)
 
@@ -627,7 +629,7 @@ class AsyncSFBulkType:
 
         return await alist_from_generator(results)
 
-    async def query_all(self, data: BulkDataStr, lazy_operation: bool = False, wait: int = 5) -> AsyncIterator[Any]:
+    async def query_all(self, data: BulkDataStr, lazy_operation: bool = False, wait: int = 5) -> Any:
         """bulk queryAll"""
         results = self._bulk_operation(operation="queryAll", data=data, wait=wait)
 
