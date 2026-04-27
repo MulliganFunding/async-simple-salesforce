@@ -32,20 +32,16 @@ format:
 
 # Run code quality checks
 check:
-    #!/bin/bash -eux
     uv run ruff check simple_salesforce tests
 
 # Run mypy checks
 check-types:
-    #!/bin/bash -eux
     uv run ty check simple_salesforce
 
 # Run all tests locally
 test *args:
-    #!/bin/bash -eux
     uv run pytest {{args}}
 
 # Run all tests locally
 ci-test coverage_dir='./coverage':
-    #!/bin/bash -eux
     uv run pytest --cov-report xml --junitxml={{coverage_dir}}/unittest.junit.xml

@@ -29,7 +29,7 @@ jobs:
           tool: just
       - uses: "actions/checkout@v3"
       - name: Set up uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        uses: astral-sh/setup-uv@v5
 
       - name: Install system dependencies (macOS)
         if: runner.os == 'macOS'
@@ -51,6 +51,7 @@ jobs:
       # Test suite
       - name: "Run tests"
         run: "just ci-test ${COVERAGE_DIR}"
+        shell: bash
       # Publish code coverage results
       - name: Code Coverage Report
         if: ${{ matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest' }}

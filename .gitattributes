@@ -1,0 +1,7 @@
+# Prevent line-ending conversion for binary and key files
+*.pem    binary
+*.key    binary
+*.crt    binary
+*.der    binary
+*.pfx    binary
+*.p12    binary
