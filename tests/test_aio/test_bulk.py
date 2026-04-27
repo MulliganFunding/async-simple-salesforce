@@ -458,6 +458,195 @@ async def test_bulk_operation_auto_batch_size(httpx_mock: HTTPXMock, sf_client):
     assert http_urls[1].endswith("/async/job/Job-1")
 
 
+@mock.patch("simple_salesforce.aio.bulk.asyncio.sleep", new_callable=mock.AsyncMock)
+async def test_async_submit_dml_using_delete(sleep_mock, sf_client, httpx_mock: HTTPXMock):
+    """Test bulk delete records using the submit_dml function on AsyncSFBulkHandler"""
+    operation = "delete"
+    body1 = {
+        "apiVersion": 42.0,
+        "concurrencyMode": "Parallel",
+        "contentType": "JSON",
+        "id": "Job-1",
+        "object": "Contact",
+        "operation": operation,
+        "state": "Open",
+    }
+    body2 = {"id": "Batch-1", "jobId": "Job-1", "state": "Queued"}
+    body3 = copy.deepcopy(body1)
+    body3["state"] = "Closed"
+    body4 = copy.deepcopy(body2)
+    body4["state"] = "InProgress"
+    body5 = copy.deepcopy(body2)
+    body5["state"] = "Completed"
+    body6 = [
+        {"success": True, "created": True, "id": "001xx000003DHP0AAO", "errors": []},
+        {"success": True, "created": True, "id": "001xx000003DHP1AAO", "errors": []},
+    ]
+    body7 = {}
+    for body in [body1, body2, body3, body4, body5, body6, body7]:
+        httpx_mock.add_response(200, json=body)
+
+    data = [{"id": "ID-1"}, {"id": "ID-2"}]
+    coro = await sf_client.bulk.submit_dml("Contact", "delete", data)
+    results = []
+    async for result in coro:
+        results.append(result)
+    assert EXPECTED_RESULT == results
+
+
+@mock.patch("simple_salesforce.aio.bulk.asyncio.sleep", new_callable=mock.AsyncMock)
+async def test_async_submit_dml_using_insert(sleep_mock, sf_client, httpx_mock: HTTPXMock):
+    """Test bulk insert records using the submit_dml function on AsyncSFBulkHandler"""
+    operation = "insert"
+    body1 = {
+        "apiVersion": 42.0,
+        "concurrencyMode": "Parallel",
+        "contentType": "JSON",
+        "id": "Job-1",
+        "object": "Contact",
+        "operation": operation,
+        "state": "Open",
+    }
+    body2 = {"id": "Batch-1", "jobId": "Job-1", "state": "Queued"}
+    body3 = copy.deepcopy(body1)
+    body3["state"] = "Closed"
+    body4 = copy.deepcopy(body2)
+    body4["state"] = "InProgress"
+    body5 = copy.deepcopy(body2)
+    body5["state"] = "Completed"
+    body6 = [
+        {"success": True, "created": True, "id": "001xx000003DHP0AAO", "errors": []},
+        {"success": True, "created": True, "id": "001xx000003DHP1AAO", "errors": []},
+    ]
+    body7 = {}
+    for body in [body1, body2, body3, body4, body5, body6, body7]:
+        httpx_mock.add_response(200, json=body)
+
+    data = [
+        {
+            "AccountId": "ID-1",
+            "Email": "contact1@example.com",
+            "FirstName": "Bob",
+            "LastName": "x",
+        },
+        {
+            "AccountId": "ID-2",
+            "Email": "contact2@example.com",
+            "FirstName": "Alice",
+            "LastName": "y",
+        },
+    ]
+    coro = await sf_client.bulk.submit_dml("Contact", "insert", data)
+    results = []
+    async for result in coro:
+        results.append(result)
+    assert EXPECTED_RESULT == results
+
+
+@mock.patch("simple_salesforce.aio.bulk.asyncio.sleep", new_callable=mock.AsyncMock)
+async def test_async_submit_dml_using_upsert(sleep_mock, sf_client, httpx_mock: HTTPXMock):
+    """Test bulk upsert records using the submit_dml function on AsyncSFBulkHandler"""
+    operation = "upsert"
+    body1 = {
+        "apiVersion": 42.0,
+        "concurrencyMode": "Parallel",
+        "contentType": "JSON",
+        "id": "Job-1",
+        "object": "Contact",
+        "operation": operation,
+        "state": "Open",
+    }
+    body2 = {"id": "Batch-1", "jobId": "Job-1", "state": "Queued"}
+    body3 = copy.deepcopy(body1)
+    body3["state"] = "Closed"
+    body4 = copy.deepcopy(body2)
+    body4["state"] = "InProgress"
+    body5 = copy.deepcopy(body2)
+    body5["state"] = "Completed"
+    body6 = [
+        {"success": True, "created": True, "id": "001xx000003DHP0AAO", "errors": []},
+        {"success": True, "created": True, "id": "001xx000003DHP1AAO", "errors": []},
+    ]
+    body7 = {}
+    for body in [body1, body2, body3, body4, body5, body6, body7]:
+        httpx_mock.add_response(200, json=body)
+
+    data = [
+        {
+            "Custom_Id__c": "CustomID1",
+            "AccountId": "ID-13",
+            "Email": "contact1@example.com",
+            "FirstName": "Bob",
+            "LastName": "x",
+        },
+        {
+            "Custom_Id__c": "CustomID2",
+            "AccountId": "ID-24",
+            "Email": "contact2@example.com",
+            "FirstName": "Alice",
+            "LastName": "y",
+        },
+    ]
+    coro = await sf_client.bulk.submit_dml(
+        "Contact", "upsert", data, external_id_field="Custom_Id__c"
+    )
+    results = []
+    async for result in coro:
+        results.append(result)
+    assert EXPECTED_RESULT == results
+
+
+@mock.patch("simple_salesforce.aio.bulk.asyncio.sleep", new_callable=mock.AsyncMock)
+async def test_async_submit_dml_using_update(sleep_mock, sf_client, httpx_mock: HTTPXMock):
+    """Test bulk update records using the submit_dml function on AsyncSFBulkHandler"""
+    operation = "update"
+    body1 = {
+        "apiVersion": 42.0,
+        "concurrencyMode": "Parallel",
+        "contentType": "JSON",
+        "id": "Job-1",
+        "object": "Contact",
+        "operation": operation,
+        "state": "Open",
+    }
+    body2 = {"id": "Batch-1", "jobId": "Job-1", "state": "Queued"}
+    body3 = copy.deepcopy(body1)
+    body3["state"] = "Closed"
+    body4 = copy.deepcopy(body2)
+    body4["state"] = "InProgress"
+    body5 = copy.deepcopy(body2)
+    body5["state"] = "Completed"
+    body6 = [
+        {"success": True, "created": True, "id": "001xx000003DHP0AAO", "errors": []},
+        {"success": True, "created": True, "id": "001xx000003DHP1AAO", "errors": []},
+    ]
+    body7 = {}
+    for body in [body1, body2, body3, body4, body5, body6, body7]:
+        httpx_mock.add_response(200, json=body)
+
+    data = [
+        {
+            "Id": "001xx000003DHP0AAO",
+            "AccountId": "ID-13",
+            "Email": "contact1@example.com",
+            "FirstName": "Bob",
+            "LastName": "x",
+        },
+        {
+            "Id": "001xx000003DHP1AAO",
+            "AccountId": "ID-24",
+            "Email": "contact2@example.com",
+            "FirstName": "Alice",
+            "LastName": "y",
+        },
+    ]
+    coro = await sf_client.bulk.submit_dml("Contact", "update", data)
+    results = []
+    async for result in coro:
+        results.append(result)
+    assert EXPECTED_RESULT == results
+
+
 @mock.patch('simple_salesforce.aio.bulk.AsyncSFBulkType._add_batch')
 async def test_add_autosized_batches(add_batch, httpx_mock: HTTPXMock, sf_client):
     """Test that _add_autosized_batches batches all records correctly"""

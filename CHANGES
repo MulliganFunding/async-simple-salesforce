@@ -1,3 +1,19 @@
+v1.12.9b0
+=========
+Bug Fixes
+---------
+- Fix `restful()` crashing on HTTP 204 No Content response (`api.py`, `aio/api.py`)
+- Fix `Content-type` → `Content-Type` header casing in metadata SOAP calls (`metadata.py`, `aio/metadata.py`)
+- Fix exception class hierarchy: `SalesforceError` now calls `super().__init__()` properly
+- Fix `SalesforceAuthenticationFailed` constructor (`auth_message` param, `TypeError` guard, updated `__str__` format)
+- Fix `_get_batch_request_with_batch_results` for-loop iterating over generator only once (`bulk.py`)
+
+Features
+--------
+- Add `submit_dml()` modular DML helper to `SFBulkHandler` and `SFBulkType` (`bulk.py`)
+- Add async `submit_dml()` to `AsyncSFBulkHandler` and `AsyncSFBulkType` (`aio/bulk.py`)
+- Update `metadata.wsdl` to Salesforce Metadata API v63.0
+
 v1.12.5
 ======
 Features

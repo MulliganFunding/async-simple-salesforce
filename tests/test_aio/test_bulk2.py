@@ -21,10 +21,8 @@ from simple_salesforce.bulk2 import JobState, Operation
 to_body = partial(json.dumps, ensure_ascii=False)
 
 
-@pytest.fixture
-def assert_all_responses_were_requested() -> bool:
-    # Disable checking httpx_mock for unrequested responses
-    return False
+# pytest-httpx >=0.35: use marker instead of the removed fixture
+pytestmark = pytest.mark.httpx_mock(assert_all_responses_were_requested=False)
 
 
 @contextmanager
@@ -132,6 +130,27 @@ def ingest_responses(httpx_mock: HTTPXMock):
                 "state": JobState.in_progress,
             },
         )
+        httpx_mock.add_response(
+            status_code=http.OK,
+            url=re.compile(r"^https://.*/jobs/ingest/Job-1$"),
+            method="GET",
+            json={
+                "apiVersion": 52.0,
+                "columnDelimiter": "COMMA",
+                "concurrencyMode": "Parallel",
+                "contentType": "CSV",
+                "id": "Job-1",
+                "jobType": "V2Ingest",
+                "lineEnding": "LF",
+                "numberRecordsFailed": failed,
+                "numberRecordsProcessed": processed,
+                "object": "Contact",
+                "operation": operation,
+                "state": JobState.job_complete,
+            },
+        )
+        # After wait_for_job(), the ingest flow calls get_job() one additional time
+        # to retrieve the final counts. Register a 3rd GET response for that call.
         httpx_mock.add_response(
             status_code=http.OK,
             url=re.compile(r"^https://.*/jobs/ingest/Job-1$"),

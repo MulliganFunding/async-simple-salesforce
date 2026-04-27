@@ -4,7 +4,7 @@ _default:
     just --list
 
 # Create a virtual environment and install dependencies
-bootstrap default="3.12":
+bootstrap default="3.14":
     uv venv --python {{default}}
 
 # Build the project as a package

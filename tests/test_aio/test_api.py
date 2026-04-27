@@ -18,7 +18,7 @@ from simple_salesforce.aio.api import (
     AsyncSalesforce,
     AsyncSFType,
 )
-from simple_salesforce.exceptions import SalesforceGeneralError
+from simple_salesforce.exceptions import SalesforceGeneralError, SalesforceResourceNotFound
 from simple_salesforce.util import date_to_iso8601
 
 
@@ -312,6 +312,25 @@ async def test_get_customid_with_request_headers(with_headers, httpx_mock: HTTPX
         assert req1.headers["Sforce-Auto-Assign"] == "FALSE"
     else:
         assert "Sforce-Auto-Assign" not in req1.headers
+
+
+async def test_get_by_custom_id_404(httpx_mock: HTTPXMock):
+    """Ensure get_by_custom_id raises SalesforceResourceNotFound on 404"""
+    httpx_mock.add_response(status_code=404, content=b"{}")
+
+    sf_type = _create_sf_type()
+    with pytest.raises(SalesforceResourceNotFound):
+        await sf_type.get_by_custom_id(
+            custom_id_field="some-field",
+            custom_id="444",
+        )
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 1
+    req1 = requests[0]
+
+    assert req1.method == "GET"
+    assert str(req1.url) == f"{CASE_URL}/some-field/444"
 
 
 @pytest.mark.parametrize("with_headers", (True, False))
@@ -795,6 +814,7 @@ async def test_search(
 ):
     """Test querying generates the expected request"""
     httpx_mock.add_response(200, content="{}")
+    httpx_mock.add_response(200, content="{}")  # second response for quick_search
 
     await sf_client.search("FIND {Joe Smith}")
     requests = httpx_mock.get_requests()
@@ -1354,6 +1374,22 @@ async def test_restful(
     assert len(httpx_mock.get_requests()) == 1
 
     assert result == body1
+
+
+async def test_restful_returns_none_on_204(
+    httpx_mock: HTTPXMock,
+    sf_client,
+):
+    """restful() returns None when the server responds with HTTP 204"""
+    httpx_mock.add_response(status_code=204, content=b"")
+
+    result = await sf_client.restful("endpoint/path")
+    assert result is None
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 1
+    assert requests[0].method == "GET"
+    assert str(requests[0].url) == "https://localhost/endpoint/path"
 
 
 @pytest.mark.parametrize("content_type", ("application/json", ""))

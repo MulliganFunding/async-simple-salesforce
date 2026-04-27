@@ -12,12 +12,12 @@ from collections import OrderedDict
 from typing import Any, AnyStr, AsyncIterator, Callable, Dict, Tuple, List
 from typing_extensions import Literal
 
+from datetime import datetime, timedelta, timezone
+
 import aiofiles
 import httpx
 from httpx import Headers
 import math
-import pendulum
-from pendulum import DateTime
 
 from simple_salesforce.exceptions import (
     SalesforceBulkV2ExtractError,
@@ -285,14 +285,14 @@ class _AsyncBulk2Client:
         self, job_id: str, is_query: bool, wait: float = 0.5
     ) -> Literal[JobState.job_complete]:
         """Wait for job completion or timeout"""
-        expiration_time: DateTime = pendulum.now().add(
+        expiration_time: datetime = datetime.now() + timedelta(
             seconds=self.DEFAULT_WAIT_TIMEOUT_SECONDS
         )
         job_status = JobState.in_progress if is_query else JobState.open
         delay_timeout = 0.0
         delay_cnt = 0
         await asyncio.sleep(wait)
-        while pendulum.now() < expiration_time:
+        while datetime.now() < expiration_time:
             job_info = await self.get_job(job_id, is_query)
             job_status = job_info["state"]
             if job_status in [
@@ -415,7 +415,7 @@ class _AsyncBulk2Client:
 
         # Pull results: because we are streaming, we need to use a session
         client = self.session_factory()
-        ts = pendulum.now("UTC").format("YYYYMMDDHHmmss")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         temp_fname = os.path.join(path, f"{job_id}-{ts}.csv")
 
         async with aiofiles.open(temp_fname, "wb") as bos:

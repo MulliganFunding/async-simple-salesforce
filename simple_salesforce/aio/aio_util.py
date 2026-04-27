@@ -27,6 +27,14 @@ def create_session_factory(**kwargs) -> Callable[[], httpx.AsyncClient]:
     expected_keywords = ["proxies", "timeout", "transport"]
     filtered_kwargs = {k: v for k, v in kwargs.items() if k in expected_keywords and v is not None}
 
+    # httpx 0.28 removed the `proxies` argument; convert to `mounts` with AsyncHTTPTransport.
+    if "proxies" in filtered_kwargs:
+        proxies = filtered_kwargs.pop("proxies")
+        filtered_kwargs["mounts"] = {
+            scheme: httpx.AsyncHTTPTransport(proxy=url)
+            for scheme, url in proxies.items()
+        }
+
     if filtered_kwargs:
         return partial(httpx.AsyncClient, **filtered_kwargs)
 

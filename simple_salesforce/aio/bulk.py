@@ -75,6 +75,56 @@ class AsyncSFBulkHandler:
             session_factory=self.session_factory,
         )
 
+    async def submit_dml(
+        self,
+        object_name: str,
+        operation: str,
+        data: BulkDataAny,
+        external_id_field: Optional[str] = None,
+        batch_size: int = 10000,
+        use_serial: bool = False,
+        bypass_results: bool = False,
+    ):
+        """Perform any DML operation on any custom or standard object in Salesforce
+        i.e. insert/upsert/update/delete
+
+        Required to put this function in this class due to error:
+        TypeError: 'AsyncSFBulkType' object is not callable
+        - this makes AsyncSFBulkType callable for this specific function
+
+        The main purpose of this function is to build customizable reporting
+        functions and reduce code reuse in individual execution scripts
+        mainly with pandas.
+
+        Arguments:
+
+        * object_name       -- SF object
+        * operation         -- insert, upsert, update, delete
+        * data              -- JSON formatted salesforce records.
+
+        Data is batched by 10,000 records by default. To pick a lower size
+        pass smaller integer to `batch_size`. to let simple-salesforce pick
+        the appropriate limit dynamically, enter `batch_size='auto'`
+
+        * batch_size        -- default to 10,000
+        * use_serial        -- default: bool = False
+        * bypass_results    -- default: bool = False
+        * external_id_field -- unique identifier field for upsert operations.
+        """
+        return await AsyncSFBulkType(
+            object_name=object_name,
+            bulk_url=self.bulk_url,
+            headers=self.headers,
+            session_factory=self.session_factory,
+        ).submit_dml(
+            operation=operation,
+            data=data,
+            external_id_field=external_id_field,
+            batch_size=batch_size,
+            use_serial=use_serial,
+            bypass_results=bypass_results,
+        )
+
 
 class AsyncSFBulkType:
     """Interface to Bulk/Async API functions"""
@@ -540,6 +590,33 @@ class AsyncSFBulkType:
             wait=wait,
             bypass_results=bypass_results,
         )
+
+    async def submit_dml(
+        self,
+        operation: str,
+        data: BulkDataAny,
+        external_id_field: Optional[str] = None,
+        batch_size: int = 10000,
+        use_serial: bool = False,
+        bypass_results: bool = False,
+    ):
+        """Modular bulk DML operations — perform insert/upsert/update/delete
+        on any standard and custom objects in Salesforce."""
+        if operation == "upsert":
+            return await self.upsert(
+                data,
+                external_id_field,
+                batch_size=batch_size,
+                use_serial=use_serial,
+                bypass_results=bypass_results,
+            )
+        else:
+            return await getattr(self, operation)(
+                data,
+                batch_size=batch_size,
+                use_serial=use_serial,
+                bypass_results=bypass_results,
+            )
 
     async def query(self, data: BulkDataStr, lazy_operation: bool = False, wait: int = 5) -> AsyncIterator[Any]:
         """bulk query"""

@@ -531,6 +531,9 @@ class AsyncSalesforce:
         result = await self._call_salesforce(
             method, url, name=path, params=params, **kwargs
         )
+        # Some restful calls return 204 No Content, which is not JSON
+        if result.status_code == 204:
+            return None
         json_result = self.parse_result_to_json(result)
 
         if len(json_result) == 0:

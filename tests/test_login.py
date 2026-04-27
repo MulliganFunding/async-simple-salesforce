@@ -179,6 +179,10 @@ class TestSalesforceLogin(unittest.TestCase):
         return_mock.content = '{"error": "invalid_client_id", ' \
                               '"error_description": "client identifier ' \
                               'invalid"}'
+        return_mock.json.return_value = {
+            'error': 'invalid_client_id',
+            'error_description': 'client identifier invalid'
+        }
         self.mockrequest.post.return_value = return_mock
 
         with self.assertRaises(SalesforceAuthenticationFailed):
@@ -248,6 +252,10 @@ class TestSalesforceLogin(unittest.TestCase):
         return_mock.content = '{"error": "invalid_client_id", ' \
                               '"error_description": "client identifier ' \
                               'invalid"}'
+        return_mock.json.return_value = {
+            'error': 'connected_app_error',
+            'error_description': 'Something went wrong'
+        }
         self.mockrequest.post.return_value = return_mock
 
         with self.assertRaises(SalesforceAuthenticationFailed):
