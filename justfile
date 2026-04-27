@@ -6,6 +6,7 @@ _default:
 # Create a virtual environment and install dependencies
 bootstrap default="3.14":
     uv venv --python {{default}}
+    uv sync --all-groups
 
 # Build the project as a package
 build *args:

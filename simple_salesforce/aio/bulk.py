@@ -5,7 +5,7 @@ from collections import OrderedDict
 from functools import partial
 import json
 import logging
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Union
 
 import httpx
 from more_itertools import chunked

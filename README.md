@@ -16,6 +16,24 @@ $ pip install "async-simple-salesforce == 1.12.9b0"
 
 ```
 
+## Installation Prerequisites
+
+This library depends on `zeep`, which requires `lxml`. On most platforms and Python versions, `lxml` installs via a pre-built wheel with no extra steps. However, if you are on macOS or Linux with a Python version that does not yet have a pre-built `lxml` wheel, the install will attempt to build `lxml` from source and will fail unless the `libxml2` and `libxslt` development libraries are present.
+
+**macOS:**
+
+```sh
+brew install libxml2 libxslt
+```
+
+**Linux (Debian/Ubuntu):**
+
+```sh
+sudo apt-get install libxml2-dev libxslt1-dev
+```
+
+After installing the system libraries, re-run the `pip install` command.
+
 ## Versioning
 
 Versioning for this library tracks the upstream version; i.e., when a new version of upstream has been published, it will be integrated into this codebase and released under the *same* version identifier, with one notable difference: we add *alpha* or *beta* identifiers to make it more obvious that this fork has not been around as long as upstream and that it has also not seen the same wide-scale usage that upstream has.

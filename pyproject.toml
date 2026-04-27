@@ -28,6 +28,7 @@ dependencies = [
   "pyjwt[crypto]",
   "requests>=2.33.1",
   "typing-extensions",
+  "lxml>=5.4.0",
   "zeep>=4.3.2",
 ]
 dynamic = [

@@ -9,7 +9,7 @@ import os
 import re
 import sys
 from collections import OrderedDict
-from typing import Any, AnyStr, AsyncIterator, Callable, Dict, Tuple, List, overload
+from typing import Any, AsyncIterator, Callable, Dict, Tuple, List, overload
 from typing_extensions import Literal
 
 from datetime import datetime, timedelta, timezone
