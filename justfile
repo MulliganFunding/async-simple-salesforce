@@ -20,12 +20,6 @@ lock:
 sync *args:
     uv sync {{args}}
 
-# Release this project to PyPI
-release:
-    uv run python -m build
-    uv run python -m twine check dist/*
-    uv run python -m twine upload dist/*
-
 # Run the formatter (`ruff`)
 format:
     uv run ruff format simple_salesforce tests

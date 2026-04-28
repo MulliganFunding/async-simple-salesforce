@@ -46,8 +46,7 @@ dev = [
   "pytz>=2026.1.post1",
   "responses>=0.26.0",
   "ruff>=0.15.12",
-  "twine>=6.2.0",
-  "ty >= 0.0.32",
+  "ty >= 0.0.33",
   "types-aiofiles>=25.1.0.20260409",
   "types-requests>=2.33.0.20260408",
 ]

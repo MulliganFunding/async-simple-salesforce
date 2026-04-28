@@ -8,22 +8,23 @@ jobs:
     name: "Publish release"
     runs-on: "ubuntu-latest"
 
-    environment: release
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    environment:
+      name: release
+      url: https://pypi.org/p/async-simple-salesforce/
 
     steps:
       - uses: taiki-e/install-action@v2
         with:
           tool: just
-      - uses: "actions/checkout@v3"
-      - uses: "actions/setup-python@v4"
-        with:
-          python-version: 3.14
-      - name: "Install uv"
-        run: "pip install uv"
+      - uses: "actions/checkout@v6"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - name: "Run install deps"
         run: "just bootstrap"
-      - name: "Build and release"
-        run: "just release"
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      - name: Install pypa/build
+        run: just build
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
