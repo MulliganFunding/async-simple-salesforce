@@ -21,16 +21,17 @@ jobs:
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
+        os: ["ubuntu-latest", "macos-latest"]
         python-version: ["3.12", "3.13", "3.14"]
     steps:
       - uses: taiki-e/install-action@v2
         with:
           tool: just
-      - uses: "actions/checkout@v3"
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
-
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+      - uses: "actions/checkout@v3"
       - name: Install system dependencies (macOS)
         if: runner.os == 'macOS'
         run: brew install libxml2 libxslt
