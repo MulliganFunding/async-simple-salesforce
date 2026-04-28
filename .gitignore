@@ -23,3 +23,5 @@ venv
 htmlcov/
 coverage.xml
 coverage/
+.bmo/
+docs/tdd

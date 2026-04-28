@@ -18,31 +18,44 @@ jobs:
         pull-requests: write
 
     name: "Python ${{ matrix.python-version }} for ${{ matrix.os }}"
-    runs-on: "ubuntu-latest"
+    runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
-        python-version: ["3.10", "3.11", "3.12"]
+        os: ["ubuntu-latest", "macos-latest"]
+        python-version: ["3.12", "3.13", "3.14"]
     steps:
       - uses: taiki-e/install-action@v2
         with:
           tool: just
       - uses: "actions/checkout@v3"
       - name: Set up uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      # Set up environment and run code quality checks
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libxml2 libxslt
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev libxslt1-dev
+
+        # Set up environment and run code quality checks
       - name: "Run install deps"
         run: "just bootstrap ${{ matrix.python-version }}"
+
+      # Code quality checks
       - name: "Run code quality checks"
         run: "just check"
-      # Enable when passing
-      # - name: "Run code quality checks"
-      #   run: "just check-types"
+      - name: "Run code quality checks"
+        run: "just check-types"
+      # Test suite
       - name: "Run tests"
         run: "just ci-test ${COVERAGE_DIR}"
+        shell: bash
       # Publish code coverage results
       - name: Code Coverage Report
-        if: ${{ matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest' }}
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
           filename: coverage.xml
@@ -56,7 +69,7 @@ jobs:
           thresholds: '70 80'
 
       - name: Add Coverage PR Comment
-        if: ${{ matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           recreate: true
@@ -64,7 +77,7 @@ jobs:
 
       # Publish junit test result
       - name: Publish Test Report
-        if: ${{ matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest' }}
         uses: mikepenz/action-junit-report@v4
         with:
           report_paths: ${{ format('/tmp/coverage/{0}/*junit.xml', github.run_id) }}

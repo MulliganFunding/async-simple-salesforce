@@ -7,11 +7,17 @@ import decimal
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+import pytest
 import requests
 import responses
 from simple_salesforce.api import PerAppUsage, Salesforce, SFType, Usage
+from simple_salesforce.exceptions import (
+    SalesforceAuthenticationFailed,
+    SalesforceError,
+    SalesforceResourceNotFound,
+)
 import tests
 
 
@@ -214,6 +220,23 @@ class TestSFType(unittest.TestCase):
             )
 
         self.assertEqual(result, {})
+
+    @responses.activate
+    def test_get_by_custom_id_404(self):
+        """Ensure API responds with SalesforceResourceNotFound for 404"""
+        responses.add(
+            responses.GET,
+            re.compile(r'^https://.*/Case/some-field/444$'),
+            body='{}',
+            status=http.NOT_FOUND
+            )
+
+        sf_type = _create_sf_type()
+        with pytest.raises(SalesforceResourceNotFound):
+            sf_type.get_by_custom_id(
+                custom_id_field='some-field',
+                custom_id='444',
+                )
 
     @responses.activate
     def test_create_with_additional_request_headers(self):
@@ -1277,3 +1300,74 @@ class TestSalesforce(unittest.TestCase):
         self.assertNotIsInstance(result, OrderedDict)
         self.assertIsInstance(result, dict)
         self.assertEqual(result, {"currency": 1.0})
+
+
+    @responses.activate
+    def test_restful_returns_none_on_204(self):
+        """restful() returns None when the server responds with HTTP 204"""
+        responses.add(
+            responses.GET,
+            re.compile(r'^https://.*$'),
+            body='',
+            status=http.NO_CONTENT
+            )
+
+        session = requests.Session()
+        client = Salesforce(session_id=tests.SESSION_ID,
+                            instance_url=tests.SERVER_URL,
+                            session=session)
+
+        result = client.restful('endpoint/path')
+        self.assertIsNone(result)
+
+    @responses.activate
+    def test_restful_204_does_not_parse_json(self):
+        """restful() returns None for 204 without attempting JSON parsing"""
+        responses.add(
+            responses.GET,
+            re.compile(r'^https://.*$'),
+            body='',
+            status=http.NO_CONTENT
+            )
+
+        session = requests.Session()
+        client = Salesforce(session_id=tests.SESSION_ID,
+                            instance_url=tests.SERVER_URL,
+                            session=session)
+
+        # Verify None is returned and no JSON parsing was attempted by patching
+        # parse_result_to_json; it must not be called on a 204 response.
+        with patch.object(client, 'parse_result_to_json') as mock_parse:
+            result = client.restful('endpoint/path')
+            self.assertIsNone(result)
+            mock_parse.assert_not_called()
+
+
+class TestExceptions(unittest.TestCase):
+    """Tests for exception classes in simple_salesforce.exceptions"""
+
+    def test_salesforce_error_super_init(self):
+        """SalesforceError calls super().__init__ and formats message correctly"""
+        e = SalesforceError(
+            url='http://test',
+            status=404,
+            resource_name='test',
+            content='not found'
+        )
+        self.assertEqual(str(e), e.message.format(url='http://test',
+                                                   content='not found'))
+
+    def test_authentication_failed_with_code(self):
+        """SalesforceAuthenticationFailed with code formats correctly"""
+        e = SalesforceAuthenticationFailed(code='ERR', auth_message='fail')
+        self.assertEqual(str(e), 'Authentication failed (code: ERR): fail')
+
+    def test_authentication_failed_no_code(self):
+        """SalesforceAuthenticationFailed with no code formats correctly"""
+        e = SalesforceAuthenticationFailed(code=None, auth_message='fail')
+        self.assertEqual(str(e), 'Authentication failed: fail')
+
+    def test_authentication_failed_old_kwarg(self):
+        """SalesforceAuthenticationFailed raises TypeError for non-str auth_message"""
+        with self.assertRaises(TypeError):
+            SalesforceAuthenticationFailed(code='x', auth_message=Mock())

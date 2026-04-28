@@ -9,15 +9,15 @@ import os
 import re
 import sys
 from collections import OrderedDict
-from typing import Any, AnyStr, AsyncIterator, Callable, Dict, Tuple, List
+from typing import Any, AsyncIterator, Callable, Dict, Tuple, List, overload
 from typing_extensions import Literal
+
+from datetime import datetime, timedelta, timezone
 
 import aiofiles
 import httpx
 from httpx import Headers
 import math
-import pendulum
-from pendulum import DateTime
 
 from simple_salesforce.exceptions import (
     SalesforceBulkV2ExtractError,
@@ -253,7 +253,7 @@ class _AsyncBulk2Client:
         * line_ending -- The line ending used for CSV job data
         * external_id_field -- The external ID field in the object being updated
         """
-        payload = {
+        payload: Dict[str, Any] = {
             "operation": operation,
             "columnDelimiter": column_delimiter,
             "lineEnding": line_ending,
@@ -285,14 +285,14 @@ class _AsyncBulk2Client:
         self, job_id: str, is_query: bool, wait: float = 0.5
     ) -> Literal[JobState.job_complete]:
         """Wait for job completion or timeout"""
-        expiration_time: DateTime = pendulum.now().add(
+        expiration_time: datetime = datetime.now() + timedelta(
             seconds=self.DEFAULT_WAIT_TIMEOUT_SECONDS
         )
         job_status = JobState.in_progress if is_query else JobState.open
         delay_timeout = 0.0
         delay_cnt = 0
         await asyncio.sleep(wait)
-        while pendulum.now() < expiration_time:
+        while datetime.now() < expiration_time:
             job_info = await self.get_job(job_id, is_query)
             job_status = job_info["state"]
             if job_status in [
@@ -359,7 +359,11 @@ class _AsyncBulk2Client:
         )
         return result.json(object_pairs_hook=OrderedDict)
 
-    def filter_null_bytes(self, b: AnyStr) -> AnyStr:
+    @overload
+    def filter_null_bytes(self, b: str) -> str: ...
+    @overload
+    def filter_null_bytes(self, b: bytes) -> bytes: ...
+    def filter_null_bytes(self, b: str | bytes) -> str | bytes:
         """
         https://github.com/airbytehq/airbyte/issues/8300
         """
@@ -404,7 +408,7 @@ class _AsyncBulk2Client:
         chunk_size: int = 1024,
     ) -> QueryResult:
         """Get results for a query job"""
-        if not os.path.exists(path):
+        if not os.path.exists(str(path)):
             raise SalesforceBulkV2LoadError(f"Path does not exist: {path}")
 
         url = self._construct_request_url(job_id, True) + "/results"
@@ -415,7 +419,7 @@ class _AsyncBulk2Client:
 
         # Pull results: because we are streaming, we need to use a session
         client = self.session_factory()
-        ts = pendulum.now("UTC").format("YYYYMMDDHHmmss")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         temp_fname = os.path.join(path, f"{job_id}-{ts}.csv")
 
         async with aiofiles.open(temp_fname, "wb") as bos:
@@ -440,7 +444,7 @@ class _AsyncBulk2Client:
                 }
             raise SalesforceBulkV2LoadError(
                 f"The IO/Error occured while verifying binary data. "
-                f"File {bos.name} doesn't exist, url: {url}, "  # type: ignore
+                f"File {bos.name} doesn't exist, url: {url}, "
             )
 
     async def upload_job_data(
@@ -471,7 +475,7 @@ class _AsyncBulk2Client:
         if result.status_code != http.CREATED:
             raise SalesforceBulkV2LoadError(
                 f"Failed to upload job data. Error Code {result.status_code}. "
-                f"Response content: {result.content}"  # type: ignore
+                f"Response content: {result.content}"
             )
 
     async def get_ingest_results(self, job_id: str, results_type: str) -> str:
@@ -485,7 +489,7 @@ class _AsyncBulk2Client:
 
     async def download_ingest_results(
         self,
-        file: str | os.PathLike[AnyStr],
+        file: str | os.PathLike[str],
         job_id: str,
         results_type: str,
         chunk_size: int = 1024,
@@ -496,7 +500,7 @@ class _AsyncBulk2Client:
 
         # Pull results: because we are streaming, we need to use a session
         client = self.session_factory()
-        async with aiofiles.open(file, "wb") as bos:
+        async with aiofiles.open(file, "wb") as bos:  # type: ignore[call-overload]
             async with client.stream(
                 "GET",
                 url,
@@ -507,9 +511,9 @@ class _AsyncBulk2Client:
                     locator = ""
 
                 async for chunk in response.aiter_bytes(chunk_size=chunk_size):
-                    await bos.write(self.filter_null_bytes(chunk))
+                    await bos.write(self.filter_null_bytes(chunk))  # type: ignore[arg-type]
 
-        if not os.path.exists(file):
+        if not os.path.exists(str(file)):
             raise SalesforceBulkV2LoadError(
                 f"The IO/Error occured while verifying binary data. "
                 f"File {file} doesn't exist, url: {url}, "
@@ -598,7 +602,7 @@ class AsyncSFBulk2Type:
     async def _upload_file(
         self,
         operation: Operation,
-        csv_file: str | os.PathLike[AnyStr] | None = None,
+        csv_file: str | os.PathLike[str] | None = None,
         records: str | None = None,
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
@@ -610,14 +614,14 @@ class AsyncSFBulk2Type:
         if csv_file and records:
             raise SalesforceBulkV2LoadError("Cannot include both file and " "records")
         if not records and csv_file:
-            if not os.path.exists(csv_file):
+            if not os.path.exists(str(csv_file)):
                 raise SalesforceBulkV2LoadError(str(csv_file) + " not found.")
 
         if (
             operation in (Operation.delete, Operation.hard_delete)
             and csv_file is not None
         ):
-            async with aiofiles.open(csv_file, "r", encoding="utf-8") as _bis:
+            async with aiofiles.open(csv_file, "r", encoding="utf-8") as _bis:  # type: ignore[call-overload]
                 bis = aiter(_bis)
                 header: str | None = await anext(bis, None)
                 if header is None:
@@ -626,17 +630,17 @@ class AsyncSFBulk2Type:
                         f"only ids, {header}"
                     )
                 else:
-                    header = header.rstrip().split(_delimiter_char[column_delimiter])
+                    header_fields = header.rstrip().split(_delimiter_char[column_delimiter])
 
-                    if len(header) != 1:
+                    if len(header_fields) != 1:
                         raise SalesforceBulkV2LoadError(
                             f"InvalidBatch: The '{operation}' batch must contain "
-                            f"only ids, {header}"
+                            f"only ids, {header_fields}"
                         )
 
         results = []
         if csv_file:
-            split_data = _split_csv(filename=csv_file, max_records=batch_size)
+            split_data = _split_csv(filename=str(csv_file), max_records=batch_size)
         else:
             split_data = _split_csv(records=records, max_records=batch_size)
 
@@ -659,7 +663,7 @@ class AsyncSFBulk2Type:
 
     async def delete(
         self,
-        csv_file: str | os.PathLike[AnyStr] | None = None,
+        csv_file: str | os.PathLike[str] | None = None,
         records: List[Dict[str, str]] | None = None,
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
@@ -685,7 +689,7 @@ class AsyncSFBulk2Type:
 
     async def insert(
         self,
-        csv_file: str | os.PathLike[AnyStr] | None = None,
+        csv_file: str | os.PathLike[str] | None = None,
         records: List[Dict[str, str]] | None = None,
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
@@ -709,7 +713,7 @@ class AsyncSFBulk2Type:
 
     async def upsert(
         self,
-        csv_file: str | os.PathLike[AnyStr] | None = None,
+        csv_file: str | os.PathLike[str] | None = None,
         records: List[Dict[str, str]] | None = None,
         external_id_field: str = "Id",
         batch_size: int | None = None,
@@ -735,7 +739,7 @@ class AsyncSFBulk2Type:
 
     async def update(
         self,
-        csv_file: str | os.PathLike[AnyStr] | None = None,
+        csv_file: str | os.PathLike[str] | None = None,
         records: List[Dict[str, str]] | None = None,
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
@@ -759,7 +763,7 @@ class AsyncSFBulk2Type:
 
     async def hard_delete(
         self,
-        csv_file: str | os.PathLike[AnyStr] | None = None,
+        csv_file: str | os.PathLike[str] | None = None,
         records: List[Dict[str, str]] | None = None,
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
@@ -788,7 +792,7 @@ class AsyncSFBulk2Type:
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
         line_ending: LineEnding = LineEnding.LF,
         wait: int = 5,
-    ) -> AsyncIterator[AnyStr]:
+    ) -> AsyncIterator[str]:
         """bulk 2.0 query
 
         Arguments:
@@ -821,7 +825,7 @@ class AsyncSFBulk2Type:
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
         line_ending: LineEnding = LineEnding.LF,
         wait: int = 5,
-    ) -> AsyncIterator[AnyStr]:
+    ) -> AsyncIterator[str]:
         """bulk 2.0 query_all
 
         Arguments:
@@ -850,7 +854,7 @@ class AsyncSFBulk2Type:
     async def download(
         self,
         query: str,
-        path: str | os.PathLike[AnyStr],
+        path: str | os.PathLike[str],
         max_records: int = DEFAULT_QUERY_PAGE_SIZE,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
         line_ending: LineEnding = LineEnding.LF,
@@ -867,7 +871,7 @@ class AsyncSFBulk2Type:
         * number_of_records -- the number of records in this set
         * file -- downloaded file
         """
-        if not os.path.exists(path):
+        if not os.path.exists(str(path)):
             raise SalesforceBulkV2LoadError(f"Path does not exist: {path}")
 
         res = await self._client.create_job(
@@ -889,16 +893,16 @@ class AsyncSFBulk2Type:
         return results
 
     async def _retrieve_ingest_records(
-        self, job_id: str, results_type: str, file: str | os.PathLike[AnyStr] | None = None
+        self, job_id: str, results_type: str, file: str | os.PathLike[str] | None = None
     ) -> str | None:
         """Retrieve the results of an ingest job"""
         if not file:
             return await self._client.get_ingest_results(job_id, results_type)
         await self._client.download_ingest_results(file, job_id, results_type)
-        return file
+        return str(file)
 
     async def get_failed_records(
-        self, job_id: str, file: str | os.PathLike[AnyStr] | None = None
+        self, job_id: str, file: str | os.PathLike[str] | None = None
     ) -> str | None:
         """Get failed record results
 
@@ -910,7 +914,7 @@ class AsyncSFBulk2Type:
         return await self._retrieve_ingest_records(job_id, ResultsType.failed, file)
 
     async def get_unprocessed_records(
-        self, job_id: str, file: str | os.PathLike[AnyStr] | None = None
+        self, job_id: str, file: str | os.PathLike[str] | None = None
     ) -> str | None:
         """Get unprocessed record results
 
@@ -922,7 +926,7 @@ class AsyncSFBulk2Type:
         )
 
     async def get_successful_records(
-        self, job_id: str, file: str | os.PathLike[AnyStr] | None = None
+        self, job_id: str, file: str | os.PathLike[str] | None = None
     ) -> str | None:
         """Get successful record results.
 
@@ -934,8 +938,8 @@ class AsyncSFBulk2Type:
         return await self._retrieve_ingest_records(job_id, ResultsType.successful, file)
 
     async def get_all_ingest_records(
-        self, job_id: str, file: str | os.PathLike[AnyStr] | None = None
-    ) -> Dict[str, List[str]]:
+        self, job_id: str, file: str | os.PathLike[str] | None = None
+    ) -> Dict[str, List[Any]]:
         """Get all ingest record results for job
 
         Results Property:

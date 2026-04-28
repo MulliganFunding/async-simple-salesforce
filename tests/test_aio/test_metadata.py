@@ -10,11 +10,8 @@ from simple_salesforce.exceptions import SalesforceGeneralError
 SOAP_SCHEMAS_PAT = re.compile(r"http://schemas.xmlsoap.org/.*")
 SOAP_SFORCE_PAT = re.compile(r"http://soap\.sforce\.com/.*")
 
-
-@pytest.fixture
-def assert_all_responses_were_requested() -> bool:
-    # Disable checking httpx_mock for unrequested responses
-    return False
+# pytest-httpx >=0.35: use marker instead of the removed fixture
+pytestmark = pytest.mark.httpx_mock(assert_all_responses_were_requested=False)
 
 
 @pytest.fixture()

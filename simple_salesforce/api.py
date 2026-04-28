@@ -34,8 +34,8 @@ class Salesforce:
     An instance of Salesforce is a handy way to wrap a Salesforce session
     for easy use of the Salesforce REST API.
     """
-    _parse_float = None
-    _object_pairs_hook = OrderedDict
+    _parse_float: Optional[Callable[[str], Any]] = None
+    _object_pairs_hook: Optional[Callable[[List[Tuple[Any, Any]]], Any]] = OrderedDict
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements,line-too-long
     def __init__(
@@ -163,9 +163,7 @@ class Salesforce:
             # If the user provides the full url (as returned by the OAuth
             # interface for example) extract the hostname (which we rely on)
             if instance_url is not None:
-                self.sf_instance: str = urlparse(
-                    instance_url
-                    ).hostname  # type: ignore[assignment]
+                self.sf_instance: str = urlparse(instance_url).hostname or ""
                 port = urlparse(instance_url).port
                 if port not in (None, 443):
                     self.sf_instance += f':{port}'
@@ -273,7 +271,7 @@ class Salesforce:
         self.oauth2_url = f'https://{self.sf_instance}/services/oauth2/'
         self.api_usage: MutableMapping[str, Union[Usage, PerAppUsage]] = {}
         self._parse_float = parse_float
-        self._object_pairs_hook = object_pairs_hook  # type: ignore[assignment]
+        self._object_pairs_hook = object_pairs_hook
         self._mdapi: Optional[SfdcMetadataApi] = None
 
     @property
@@ -359,7 +357,7 @@ class Salesforce:
         # fix to enable serialization
         # (https://github.com/heroku/simple-salesforce/issues/60)
         if name.startswith('__'):
-            return super().__getattr__(name)  # type: ignore[misc,no-any-return]
+            raise AttributeError(name)
 
         if name == 'bulk':
             # Deal with bulk API functions
@@ -383,7 +381,7 @@ class Salesforce:
             proxies=self.proxies,
             session=self.session,
             salesforce=self,
-            object_pairs_hook=self._object_pairs_hook
+            object_pairs_hook=self._object_pairs_hook or OrderedDict
             )
 
     # User utility methods
@@ -447,6 +445,9 @@ class Salesforce:
                                        params=params,
                                        **kwargs
                                        )
+        # Some restful calls return 204 No Content, which is not JSON
+        if result.status_code == 204:
+            return None
 
         json_result = self.parse_result_to_json(result)
         if len(json_result) == 0:
@@ -892,8 +893,8 @@ class Salesforce:
 
 class SFType:
     """An interface to a specific type of SObject"""
-    _parse_float = None
-    _object_pairs_hook = OrderedDict
+    _parse_float: Optional[Callable[[str], Any]] = None
+    _object_pairs_hook: Optional[Callable[[List[Tuple[Any, Any]]], Any]] = OrderedDict
 
     # pylint: disable=too-many-arguments
     def __init__(
@@ -941,7 +942,7 @@ class SFType:
         self.name = object_name
         self.session = session or requests.Session()
         self._parse_float = parse_float
-        self._object_pairs_hook = object_pairs_hook  # type: ignore[assignment]
+        self._object_pairs_hook = object_pairs_hook
 
         # don't wipe out original proxies with None
         if not session and proxies is not None:

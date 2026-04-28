@@ -17,8 +17,8 @@ from contextlib import closing
 from enum import Enum
 from functools import partial
 from time import sleep
-from typing import Any, AnyStr, Dict, Generator, List, MutableMapping, \
-    Optional, Tuple, Union
+from typing import Any, Dict, Generator, List, MutableMapping, \
+    Optional, Tuple, Union, overload
 from typing_extensions import Literal, NotRequired, TypedDict
 
 import requests
@@ -374,7 +374,7 @@ class _Bulk2Client:
         * line_ending -- The line ending used for CSV job data
         * external_id_field -- The external ID field in the object being updated
         """
-        payload = {
+        payload: Dict[str, Any] = {
             "operation": operation,
             "columnDelimiter": column_delimiter,
             "lineEnding": line_ending,
@@ -530,24 +530,18 @@ class _Bulk2Client:
             )
         return result.json(object_pairs_hook=OrderedDict)
 
-    def filter_null_bytes(self,
-                          b: AnyStr
-                          ) -> AnyStr:
+    @overload
+    def filter_null_bytes(self, b: str) -> str: ...
+    @overload
+    def filter_null_bytes(self, b: bytes) -> bytes: ...
+    def filter_null_bytes(self, b: str | bytes) -> str | bytes:
         """
         https://github.com/airbytehq/airbyte/issues/8300
         """
-        if isinstance(b,
-                      str
-                      ):
-            return b.replace("\x00",
-                             ""
-                             )
-        if isinstance(b,
-                      bytes
-                      ):
-            return b.replace(b"\x00",
-                             b""
-                             )
+        if isinstance(b, str):
+            return b.replace("\x00", "")
+        if isinstance(b, bytes):
+            return b.replace(b"\x00", b"")
         raise TypeError("Expected str or bytes")
 
     def get_query_results(

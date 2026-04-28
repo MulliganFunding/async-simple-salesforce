@@ -200,7 +200,7 @@ async def AsyncSalesforceLogin(
             async with aiofiles.open(privatekey_file, "rb") as key_file:
                 key = await key_file.read()
         else:
-            key = privatekey  # type: ignore[assignment]
+            key = privatekey or ""
 
         assertion = jwt.encode(payload, key, algorithm="RS256")
 
@@ -272,7 +272,10 @@ async def soap_login(
     if session_factory:
         client = session_factory()
     elif proxies and not session_factory:
-        client = httpx.AsyncClient(proxies=proxies)
+        client = httpx.AsyncClient(mounts={
+            scheme: httpx.AsyncHTTPTransport(proxy=url)
+            for scheme, url in proxies.items()
+        })
     else:
         client = httpx.AsyncClient()
 
@@ -314,7 +317,10 @@ async def token_login(
     if session_factory:
         client = session_factory()
     elif proxies and not session_factory:
-        client = httpx.AsyncClient(proxies=proxies)
+        client = httpx.AsyncClient(mounts={
+            scheme: httpx.AsyncHTTPTransport(proxy=url)
+            for scheme, url in proxies.items()
+        })
     else:
         client = httpx.AsyncClient()
 

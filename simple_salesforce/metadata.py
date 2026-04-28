@@ -223,8 +223,8 @@ class SfdcMetadataApi:
         self._client = Client(
             wsdl_path.absolute().as_uri(),
             settings=Settings(
-                strict=False,
-                xsd_ignore_sequence_order=True
+                strict=False,  # type: ignore
+                xsd_ignore_sequence_order=True  # type: ignore
             ))  # type: ignore[no-untyped-call]
         self._service = self._client.create_service(
             "{http://soap.sforce.com/2006/04/metadata}MetadataBinding",
@@ -354,11 +354,11 @@ class SfdcMetadataApi:
         :return:
         :rtype:
         """
-        if hasattr(zipfile, 'read') and hasattr(zipfile, 'seek'):
+        if isinstance(zipfile, str):
+            raw = Path(zipfile).read_bytes()
+        else:
             zipfile.seek(0)
             raw = zipfile.read()
-        else:
-            raw = Path(zipfile).read_bytes()
         return b64encode(raw).decode()
 
     # pylint: disable=broad-exception-raised
@@ -384,7 +384,7 @@ class SfdcMetadataApi:
             }
         mt_request = CHECK_DEPLOY_STATUS_MSG.format(**attributes)
         headers = {
-            'Content-type': 'text/xml', 'SOAPAction': 'checkDeployStatus'
+            'Content-Type': 'text/xml', 'SOAPAction': 'checkDeployStatus'
             }
 
         res = call_salesforce(
@@ -540,7 +540,7 @@ class SfdcMetadataApi:
             }
         request = RETRIEVE_MSG.format(**attributes)
         # Submit request
-        headers = {'Content-type': 'text/xml', 'SOAPAction': 'retrieve'}
+        headers = {'Content-Type': 'text/xml', 'SOAPAction': 'retrieve'}
 
         res = call_salesforce(
             url=self.metadata_url + 'deployRequest/' + async_process_id,
@@ -578,7 +578,7 @@ class SfdcMetadataApi:
             }
         mt_request = CHECK_RETRIEVE_STATUS_MSG.format(**attributes)
         headers = {
-            'Content-type': 'text/xml', 'SOAPAction': 'checkRetrieveStatus'
+            'Content-Type': 'text/xml', 'SOAPAction': 'checkRetrieveStatus'
             }
         res = call_salesforce(
             url=self.metadata_url + 'deployRequest/' + async_process_id,
@@ -625,7 +625,7 @@ class SfdcMetadataApi:
         zipfile_base64 = result.findtext(
             'mt:zipFile', None, self._XML_NAMESPACES
         ) or None
-        zipfile = b64decode(zipfile_base64)  # type: ignore[arg-type]
+        zipfile = b64decode(zipfile_base64 or b"")  # type: ignore[arg-type]
 
         return state, error_message, messages, zipfile
 

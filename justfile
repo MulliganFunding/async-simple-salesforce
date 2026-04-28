@@ -4,8 +4,9 @@ _default:
     just --list
 
 # Create a virtual environment and install dependencies
-bootstrap default="3.12":
+bootstrap default="3.14":
     uv venv --python {{default}}
+    uv sync --all-groups
 
 # Build the project as a package
 build *args:
@@ -31,20 +32,16 @@ format:
 
 # Run code quality checks
 check:
-    #!/bin/bash -eux
     uv run ruff check simple_salesforce tests
 
 # Run mypy checks
 check-types:
-    #!/bin/bash -eux
-    uv run mypy simple_salesforce
+    uv run ty check simple_salesforce
 
 # Run all tests locally
 test *args:
-    #!/bin/bash -eux
     uv run pytest {{args}}
 
 # Run all tests locally
 ci-test coverage_dir='./coverage':
-    #!/bin/bash -eux
     uv run pytest --cov-report xml --junitxml={{coverage_dir}}/unittest.junit.xml
