@@ -481,7 +481,7 @@ class SFBulkType:
                                                           operation=operation
                                                           )
                 else:
-                    batch_size = cast(int,
+                    batch_size = cast(int,  # type: ignore
                                       batch_size
                                       )
                     batches = [

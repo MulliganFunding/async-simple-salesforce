@@ -14,7 +14,7 @@ import aiofiles
 import pytest
 from pytest_httpx import HTTPXMock
 
-from simple_salesforce.bulk2 import JobState, Operation
+from simple_salesforce.bulk2 import JobState, Operation, SalesforceBulkV2LoadError
 
 # pylint: disable=line-too-long,missing-docstring
 
@@ -174,9 +174,12 @@ def ingest_responses(httpx_mock: HTTPXMock):
     return build_response
 
 
-async def ingest_data(sf_client, operation, data, **kwargs):
+async def ingest_data(sf_client, operation, data, from_records=False, **kwargs):
     """Upload data into Salesforce"""
     operation = "hard_delete" if operation == Operation.hard_delete else operation
+    if from_records:
+        handler = getattr(sf_client.bulk2.Contact, operation)
+        return await handler(records=data, **kwargs)
     with to_csv_file(data) as csv_file:
         handler = getattr(sf_client.bulk2.Contact, operation)
         results = await handler(csv_file, **kwargs)
@@ -326,6 +329,32 @@ async def test_hard_delete(httpx_mock, sf_client, ingest_responses):
             """
         )
         == results
+    )
+
+
+@pytest.mark.parametrize("from_records", [True, False])
+@pytest.mark.parametrize(
+    "operation,data,header",
+    [
+        (
+            Operation.hard_delete,
+            [
+                {"Name": "Alice", "Id": "a011s00000DTU9zAAH"},
+                {"Name": "Bob", "Id": "a011s00000DTUA0AAP"},
+            ],
+            ["Name", "Id"],
+        ),
+        (Operation.hard_delete, [{"Name": "Alice"}, {"Name": "Bob"}], ["Name"]),
+        (Operation.delete, [{"Name": "Alice"}, {"Name": "Bob"}], ["Name"]),
+    ],
+)
+async def test_delete_requires_id_only(sf_client, operation, data, header, from_records):
+    """Test bulk2 delete/hardDelete raise SalesforceBulkV2LoadError unless the
+    only field is 'Id'"""
+    with pytest.raises(SalesforceBulkV2LoadError) as exc_info:
+        await ingest_data(sf_client, operation, data, from_records=from_records)
+    assert str(exc_info.value) == (
+        f"InvalidBatch: The 'delete/hard_delete' batch must contain only 'Id', {header}"
     )
 
 

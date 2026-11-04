@@ -1,3 +1,20 @@
+v1.12.10b0
+==========
+Matches upstream simple-salesforce 1.12.10.
+
+Bug Fixes
+---------
+- [#825] `SalesforceAuthenticationFailed` coerces a missing or non-string `auth_message` instead of raising `TypeError` (`exceptions.py`)
+- [#733] URL-encode the custom id value in `get_by_custom_id` (`aio/api.py`; already present in `api.py`)
+
+Features
+--------
+- [#736] Bulk 2.0 CSV splitting and counting parse CSV with `csv.reader`, so quoted fields containing line breaks are handled (`bulk2.py`, `aio/bulk2.py`)
+- [#736] Add `quoting` parameter to Bulk 2.0 `insert`, `upsert`, `update`, `delete`, `hard_delete` (`bulk2.py`, `aio/bulk2.py`)
+- [#736] Bulk 2.0 `delete`/`hard_delete` require `Id` to be the only field, for both `csv_file` and `records` input (`bulk2.py`, `aio/bulk2.py`)
+- [#736] `SalesforceLogin` uses the OAuth password grant when `username`, `consumer_key`, and `consumer_secret` are given without `password` (`login.py`, `aio/login.py`)
+- [#733] Add `scratch_url` argument to `AsyncSalesforceLogin` (`aio/login.py`; already present in `login.py`)
+
 v1.12.9b0
 =========
 Bug Fixes
