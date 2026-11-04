@@ -477,6 +477,14 @@ results = await sf.bulk2.Contact.delete(records=[{'Id': '003xx...'}])
 results = await sf.bulk2.Contact.hard_delete(records=[{'Id': '003xx...'}])
 ```
 
+`delete` and `hard_delete` raise `SalesforceBulkV2LoadError` unless `Id` is the
+only column.
+
+Ingest operations accept `column_delimiter`, `line_ending`, and `quoting` (a
+`csv.QUOTE_*` constant, default `csv.QUOTE_MINIMAL`). These control how CSV
+files and records are parsed and how batches are written. Quoted fields may
+contain line breaks.
+
 Each call returns a list of dicts, one per batch submitted:
 
 ```python

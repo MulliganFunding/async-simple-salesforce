@@ -145,7 +145,7 @@ class Salesforce:
                 username=username,
                 password=password,
                 security_token=security_token,
-                sf_version=self.sf_version,
+                sf_version=self.sf_version,  # type: ignore
                 proxies=self.proxies,
                 client_id=client_id,
                 domain=self.domain
@@ -187,7 +187,7 @@ class Salesforce:
                 username=username,
                 password=password,
                 organizationId=organizationId,
-                sf_version=self.sf_version,
+                sf_version=self.sf_version,  # type: ignore
                 proxies=self.proxies,
                 client_id=client_id,
                 domain=self.domain

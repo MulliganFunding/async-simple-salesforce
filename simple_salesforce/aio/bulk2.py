@@ -4,12 +4,23 @@ import asyncio
 import copy
 import csv
 import http.client as http
+import io
 import json
 import os
-import re
 import sys
 from collections import OrderedDict
-from typing import Any, AsyncIterator, Callable, Dict, Tuple, List, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    AsyncIterator,
+    Callable,
+    Dict,
+    Iterator,
+    Tuple,
+    List,
+    overload,
+)
 from typing_extensions import Literal
 
 from datetime import datetime, timedelta, timezone
@@ -40,15 +51,44 @@ from simple_salesforce.bulk2 import (
 from simple_salesforce.util import Proxies
 from .aio_util import call_salesforce
 
+if TYPE_CHECKING:
+    from _csv import _QuotingType
+
 
 # pylint: disable=missing-class-docstring,invalid-name,too-many-arguments,
 # too-many-locals
+
+
+async def _aiter_csv_file_rows(
+    filename: str,
+    column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
+    quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
+) -> AsyncGenerator[List[str], None]:
+    """Asynchronously read and parse rows from a CSV file.
+
+    A quoted field may contain line breaks, so lines are buffered until
+    the quote characters are balanced before the row is parsed.
+    """
+    dl = _delimiter_char[column_delimiter]
+    pending = ""
+    async with aiofiles.open(filename, encoding="utf-8") as bis:
+        async for line in bis:
+            pending += line
+            if quoting != csv.QUOTE_NONE and pending.count('"') % 2:
+                continue
+            yield next(csv.reader([pending], delimiter=dl, quoting=quoting))
+            pending = ""
+    if pending:
+        yield next(csv.reader([pending], delimiter=dl, quoting=quoting))
 
 
 async def _split_csv(
     filename: str | None = None,
     records: str | None = None,
     max_records: int | None = None,
+    line_ending: LineEnding = LineEnding.LF,
+    column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
+    quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
 ) -> AsyncIterator[Tuple[int, str]]:
     """Split a CSV file into chunks to avoid exceeding the Salesforce
     bulk 2.0 API limits.
@@ -58,9 +98,21 @@ async def _split_csv(
         * max_records -- the number of records per chunk, None for auto size
     """
     if filename:
-        total_records = await _count_csv(filename=filename, skip_header=True)
+        total_records = await _count_csv(
+            filename=filename,
+            skip_header=True,
+            line_ending=line_ending,
+            column_delimiter=column_delimiter,
+            quoting=quoting,
+        )
     else:
-        total_records = await _count_csv(data=records, skip_header=True)
+        total_records = await _count_csv(
+            data=records,
+            skip_header=True,
+            line_ending=line_ending,
+            column_delimiter=column_delimiter,
+            quoting=quoting,
+        )
 
     csv_data_size = os.path.getsize(filename) if filename else sys.getsizeof(records)
     max_records = max_records or total_records
@@ -68,45 +120,57 @@ async def _split_csv(
     max_bytes = min(
         csv_data_size, MAX_INGEST_JOB_FILE_SIZE - 1 * 1024 * 1024
     )  # -1 MB for sentinel
-    records_size = 0
-    bytes_size = 0
-    buff: List[str] = []
-    if filename:
-        async with aiofiles.open(filename, encoding="utf-8") as _bis:
-            bis = aiter(_bis)
-            try:
-                header = await anext(bis)
-            except StopAsyncIteration:
-                raise ValueError(f"{filename} is empty")
 
-            async for line in bis:
-                records_size += 1
-                bytes_size += len(line.encode("utf-8"))
-                if records_size > max_records or bytes_size > max_bytes:
-                    if buff:
-                        yield records_size - 1, header + "".join(buff)
-                    buff = [line]
-                    records_size = 1
-                    bytes_size = len(line.encode("utf-8"))
-                else:
-                    buff.append(line)
-            if buff:
-                yield records_size, header + "".join(buff)
-    elif records:
-        header = records.splitlines(True)[0]
-        for line in records.splitlines(True)[1:]:
+    dl = _delimiter_char[column_delimiter]
+    le = _line_ending_char[line_ending]
+
+    def _flush(header: List[str], rows: List[List[str]]) -> str:
+        buffer = io.StringIO()
+        writer = csv.writer(buffer, delimiter=dl, lineterminator=le, quoting=quoting)
+        writer.writerow(header)
+        writer.writerows(rows)
+        return buffer.getvalue()
+
+    async def _split(
+        csv_rows: AsyncIterator[List[str]],
+    ) -> AsyncIterator[Tuple[int, str]]:
+        fieldnames = await anext(csv_rows, None)
+        if fieldnames is None:
+            raise ValueError(f"{filename} is empty")
+        records_size = 0
+        bytes_size = 0
+        buff: List[List[str]] = []
+        async for line in csv_rows:
+            line_data_size = len(dl.join(line).encode("utf-8"))  # rough estimate
             records_size += 1
-            bytes_size += len(line.encode("utf-8"))
+            bytes_size += line_data_size
             if records_size > max_records or bytes_size > max_bytes:
                 if buff:
-                    yield records_size - 1, header + "".join(buff)
-                buff = [line]
+                    yield records_size - 1, _flush(fieldnames, buff)
                 records_size = 1
-                bytes_size = len(line.encode("utf-8"))
+                bytes_size = line_data_size
+                buff = [line]
             else:
                 buff.append(line)
         if buff:
-            yield records_size, header + "".join(buff)
+            yield records_size, _flush(fieldnames, buff)
+
+    async def _aiter_rows(rows: Iterator[List[str]]) -> AsyncIterator[List[str]]:
+        for row in rows:
+            yield row
+
+    if filename:
+        file_rows = _aiter_csv_file_rows(filename, column_delimiter, quoting)
+        async for chunk in _split(file_rows):
+            yield chunk
+    elif records:
+        reader = csv.reader(
+            io.StringIO(records), delimiter=dl, lineterminator=le, quoting=quoting
+        )
+        async for chunk in _split(_aiter_rows(reader)):
+            yield chunk
+    else:
+        raise ValueError("Either filename or records must be provided")
 
 
 async def _count_csv(
@@ -114,22 +178,45 @@ async def _count_csv(
     data: str | None = None,
     skip_header: bool = False,
     line_ending: LineEnding = LineEnding.LF,
+    column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
+    quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
 ) -> int:
     """Count the number of records in a CSV file."""
+    dl = _delimiter_char[column_delimiter]
+    le = _line_ending_char[line_ending]
     if filename:
         count = 0
-        async with aiofiles.open(filename, encoding="utf-8") as bis:
-            async for _ in bis:
-                count += 1
+        async for _ in _aiter_csv_file_rows(filename, column_delimiter, quoting):
+            count += 1
     elif data:
-        pat = repr(_line_ending_char[line_ending])[1:-1]
-        count = sum(1 for _ in re.finditer(pat, data))
+        reader = csv.reader(
+            io.StringIO(data), delimiter=dl, lineterminator=le, quoting=quoting
+        )
+        count = sum(1 for _ in reader)
     else:
         raise ValueError("Either filename or data must be provided")
 
-    if skip_header:
+    if skip_header and count:
         count -= 1
     return count
+
+
+async def _get_csv_fieldnames(
+    filename: str | None = None,
+    records: List[Dict[str, str]] | None = None,
+    column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
+    quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
+) -> List[str]:
+    """Get fieldnames from a CSV file or list of records."""
+    if filename:
+        rows = _aiter_csv_file_rows(filename, column_delimiter, quoting)
+        fieldnames = await anext(rows, [])
+        await rows.aclose()
+    elif records:
+        fieldnames = list(records[0].keys())
+    else:
+        raise ValueError("Either filename or records must be provided")
+    return fieldnames
 
 
 class AsyncSFBulk2Handler:
@@ -598,6 +685,25 @@ class AsyncSFBulk2Type:
                 await self._client.abort_job(job_id, False)
             raise
 
+    async def _constrain_id_only(
+        self,
+        csv_file: str | os.PathLike[str] | None = None,
+        records: List[Dict[str, str]] | None = None,
+        column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
+        quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
+    ) -> None:
+        header = await _get_csv_fieldnames(
+            filename=str(csv_file) if csv_file else None,
+            records=records,
+            column_delimiter=column_delimiter,
+            quoting=quoting,
+        )
+        if header != ["Id"]:
+            raise SalesforceBulkV2LoadError(
+                f"InvalidBatch: The 'delete/hard_delete' batch must contain "
+                f"only 'Id', {header}"
+            )
+
     # pylint:disable=too-many-locals
     async def _upload_file(
         self,
@@ -607,42 +713,36 @@ class AsyncSFBulk2Type:
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
         line_ending: LineEnding = LineEnding.LF,
+        quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
         external_id_field: str | None = None,
         wait: int = 5,
     ) -> List[Dict[str, str | int]]:
         """Upload csv file to Salesforce"""
         if csv_file and records:
             raise SalesforceBulkV2LoadError("Cannot include both file and " "records")
-        if not records and csv_file:
+        elif csv_file:
             if not os.path.exists(str(csv_file)):
                 raise SalesforceBulkV2LoadError(str(csv_file) + " not found.")
-
-        if (
-            operation in (Operation.delete, Operation.hard_delete)
-            and csv_file is not None
-        ):
-            async with aiofiles.open(csv_file, "r", encoding="utf-8") as _bis:  # type: ignore[call-overload]
-                bis = aiter(_bis)
-                header: str | None = await anext(bis, None)
-                if header is None:
-                    raise SalesforceBulkV2LoadError(
-                        f"InvalidBatch: The '{operation}' batch must contain "
-                        f"only ids, {header}"
-                    )
-                else:
-                    header_fields = header.rstrip().split(_delimiter_char[column_delimiter])
-
-                    if len(header_fields) != 1:
-                        raise SalesforceBulkV2LoadError(
-                            f"InvalidBatch: The '{operation}' batch must contain "
-                            f"only ids, {header_fields}"
-                        )
+        elif not records:
+            raise SalesforceBulkV2LoadError("Must include either file or records")
 
         results = []
         if csv_file:
-            split_data = _split_csv(filename=str(csv_file), max_records=batch_size)
+            split_data = _split_csv(
+                filename=str(csv_file),
+                max_records=batch_size,
+                line_ending=line_ending,
+                column_delimiter=column_delimiter,
+                quoting=quoting,
+            )
         else:
-            split_data = _split_csv(records=records, max_records=batch_size)
+            split_data = _split_csv(
+                records=records,
+                max_records=batch_size,
+                line_ending=line_ending,
+                column_delimiter=column_delimiter,
+                quoting=quoting,
+            )
 
         futures = []
         # This may load all data into memory causing OOMKilled behavior
@@ -668,21 +768,30 @@ class AsyncSFBulk2Type:
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
         line_ending: LineEnding = LineEnding.LF,
+        quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
         external_id_field: str | None = None,
         wait: int = 5,
     ) -> List[Dict[str, str | int]]:
         """soft delete records"""
+        await self._constrain_id_only(
+            csv_file=csv_file,
+            records=records,
+            column_delimiter=column_delimiter,
+            quoting=quoting,
+        )
         return await self._upload_file(
             Operation.delete,
             csv_file=csv_file,
             records=_convert_dict_to_csv(
                 records,
-                column_delimiter=_delimiter_char.get(column_delimiter, ","),
-                line_ending=_line_ending_char.get(line_ending, "\n"),
+                column_delimiter=column_delimiter,
+                line_ending=line_ending,
+                quoting=quoting,
             ),
             batch_size=batch_size,
             column_delimiter=column_delimiter,
             line_ending=line_ending,
+            quoting=quoting,
             external_id_field=external_id_field,
             wait=wait,
         )
@@ -694,6 +803,7 @@ class AsyncSFBulk2Type:
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
         line_ending: LineEnding = LineEnding.LF,
+        quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
         wait: int = 5,
     ) -> List[Dict[str, str | int]]:
         """insert records"""
@@ -702,12 +812,14 @@ class AsyncSFBulk2Type:
             csv_file=csv_file,
             records=_convert_dict_to_csv(
                 records,
-                column_delimiter=_delimiter_char.get(column_delimiter, ","),
-                line_ending=_line_ending_char.get(line_ending, "\n"),
+                column_delimiter=column_delimiter,
+                line_ending=line_ending,
+                quoting=quoting,
             ),
             batch_size=batch_size,
             column_delimiter=column_delimiter,
             line_ending=line_ending,
+            quoting=quoting,
             wait=wait,
         )
 
@@ -719,6 +831,7 @@ class AsyncSFBulk2Type:
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
         line_ending: LineEnding = LineEnding.LF,
+        quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
         wait: int = 5,
     ) -> List[Dict[str, str | int]]:
         """upsert records based on a unique identifier"""
@@ -727,12 +840,14 @@ class AsyncSFBulk2Type:
             csv_file=csv_file,
             records=_convert_dict_to_csv(
                 records,
-                column_delimiter=_delimiter_char.get(column_delimiter, ","),
-                line_ending=_line_ending_char.get(line_ending, "\n"),
+                column_delimiter=column_delimiter,
+                line_ending=line_ending,
+                quoting=quoting,
             ),
             batch_size=batch_size,
             column_delimiter=column_delimiter,
             line_ending=line_ending,
+            quoting=quoting,
             external_id_field=external_id_field,
             wait=wait,
         )
@@ -744,6 +859,7 @@ class AsyncSFBulk2Type:
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
         line_ending: LineEnding = LineEnding.LF,
+        quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
         wait: int = 5,
     ) -> List[Dict[str, str | int]]:
         """update records"""
@@ -752,12 +868,14 @@ class AsyncSFBulk2Type:
             csv_file=csv_file,
             records=_convert_dict_to_csv(
                 records,
-                column_delimiter=_delimiter_char.get(column_delimiter, ","),
-                line_ending=_line_ending_char.get(line_ending, "\n"),
+                column_delimiter=column_delimiter,
+                line_ending=line_ending,
+                quoting=quoting,
             ),
             batch_size=batch_size,
             column_delimiter=column_delimiter,
             line_ending=line_ending,
+            quoting=quoting,
             wait=wait,
         )
 
@@ -768,20 +886,29 @@ class AsyncSFBulk2Type:
         batch_size: int | None = None,
         column_delimiter: ColumnDelimiter = ColumnDelimiter.COMMA,
         line_ending: LineEnding = LineEnding.LF,
+        quoting: "_QuotingType" = csv.QUOTE_MINIMAL,
         wait: int = 5,
     ) -> List[Dict[str, str | int]]:
         """hard delete records"""
+        await self._constrain_id_only(
+            csv_file=csv_file,
+            records=records,
+            column_delimiter=column_delimiter,
+            quoting=quoting,
+        )
         return await self._upload_file(
             Operation.hard_delete,
             csv_file=csv_file,
             records=_convert_dict_to_csv(
                 records,
-                column_delimiter=_delimiter_char.get(column_delimiter, ","),
-                line_ending=_line_ending_char.get(line_ending, "\n"),
+                column_delimiter=column_delimiter,
+                line_ending=line_ending,
+                quoting=quoting,
             ),
             batch_size=batch_size,
             column_delimiter=column_delimiter,
             line_ending=line_ending,
+            quoting=quoting,
             wait=wait,
         )
 

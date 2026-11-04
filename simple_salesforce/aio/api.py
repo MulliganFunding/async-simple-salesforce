@@ -23,7 +23,7 @@ from typing import (
     TypeVar,
     Tuple,
 )
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, quote_plus
 import warnings
 
 import httpx
@@ -1099,7 +1099,7 @@ class AsyncSFType:
         * custom_id - the External ID value of the SObject to get
         * headers -- a dict with additional request headers.
         """
-        custom_url = urljoin(self.base_url, f"{custom_id_field}/{custom_id}")
+        custom_url = urljoin(self.base_url, f"{custom_id_field}/{quote_plus(custom_id)}")
         result = await self._call_salesforce(
             method="GET", url=custom_url, headers=headers
         )

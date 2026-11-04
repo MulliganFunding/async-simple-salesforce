@@ -68,6 +68,31 @@ async def test_custom_domain_success(constants, httpx_mock: HTTPXMock):
     assert requests[0].headers["SOAPAction"] == "login"
 
 
+async def test_scratch_url_success(constants, httpx_mock: HTTPXMock):
+    """Test SOAP login posts to scratch_url when it is provided"""
+    scratch_url = "https://scratch-org-1234.scratch.my.salesforce.com"
+    url = re.compile(rf"{re.escape(scratch_url)}/services/Soap/u/.*")
+
+    httpx_mock.add_response(
+        status_code=200, url=url, text=constants["LOGIN_RESPONSE_SUCCESS"]
+    )
+
+    (session_id, instance_url) = await AsyncSalesforceLogin(
+        username="foo@bar.com",
+        password="password",
+        security_token="token",
+        domain="test",
+        scratch_url=scratch_url,
+    )
+    assert session_id == constants["SESSION_ID"]
+    assert instance_url == urlparse(constants["INSTANCE_URL"]).netloc
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 1
+    assert str(requests[0].url) == (
+        f"{scratch_url}/services/Soap/u/{DEFAULT_API_VERSION}"
+    )
+
+
 async def test_custom_domain_soap_failure(urls, httpx_mock: HTTPXMock):
     """Test login for custom domain"""
     fail_result = (
@@ -331,6 +356,36 @@ async def test_connected_app_login_success(constants, urls, httpx_mock: HTTPXMoc
     parsed_data = parse_qs(requests[0].content)
 
     assert parsed_data[b"grant_type"] == [b"password"]
+
+
+async def test_connected_app_login_without_password(
+    constants, urls, httpx_mock: HTTPXMock
+):
+    """Test connected app login with username but no password uses the
+    password grant"""
+
+    httpx_mock.add_response(
+        status_code=200,
+        url=urls["oauth_token_url_pat"],
+        text=constants["TOKEN_LOGIN_RESPONSE_SUCCESS"],
+    )
+
+    (session_id, instance_url) = await AsyncSalesforceLogin(
+        username="foo@bar.com",
+        consumer_key="12345.abcde",
+        consumer_secret="12345.abcde",
+    )
+    assert session_id == constants["SESSION_ID"]
+    assert instance_url == urlparse(constants["INSTANCE_URL"]).netloc
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 1
+
+    assert requests[0].method == "POST"
+    assert str(requests[0].url).startswith(urls["oauth_token_url"])
+    parsed_data = parse_qs(requests[0].content)
+
+    assert parsed_data[b"grant_type"] == [b"password"]
+    assert parsed_data[b"username"] == [b"foo@bar.com"]
 
 
 async def test_connected_app_login_failure(urls, httpx_mock: HTTPXMock):

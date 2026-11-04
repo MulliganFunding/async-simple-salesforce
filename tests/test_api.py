@@ -7,7 +7,7 @@ import decimal
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 import requests
@@ -1367,7 +1367,13 @@ class TestExceptions(unittest.TestCase):
         e = SalesforceAuthenticationFailed(code=None, auth_message='fail')
         self.assertEqual(str(e), 'Authentication failed: fail')
 
-    def test_authentication_failed_old_kwarg(self):
-        """SalesforceAuthenticationFailed raises TypeError for non-str auth_message"""
-        with self.assertRaises(TypeError):
-            SalesforceAuthenticationFailed(code='x', auth_message=Mock())
+    def test_authentication_failed_none_message(self):
+        """SalesforceAuthenticationFailed coerces None auth_message to ''"""
+        e = SalesforceAuthenticationFailed(code='x', auth_message=None)
+        self.assertEqual(e.auth_message, '')
+        self.assertEqual(str(e), 'Authentication failed (code: x): ')
+
+    def test_authentication_failed_non_str_message(self):
+        """SalesforceAuthenticationFailed coerces non-str auth_message"""
+        e = SalesforceAuthenticationFailed(code='x', auth_message=123)
+        self.assertEqual(e.auth_message, '123')

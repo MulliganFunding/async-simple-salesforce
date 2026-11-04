@@ -314,6 +314,20 @@ async def test_get_customid_with_request_headers(with_headers, httpx_mock: HTTPX
         assert "Sforce-Auto-Assign" not in req1.headers
 
 
+async def test_get_by_custom_id_quotes_unsafe_characters(httpx_mock: HTTPXMock):
+    """Ensure get_by_custom_id URL-encodes the custom id value"""
+    httpx_mock.add_response(json={})
+
+    sf_type = _create_sf_type()
+    await sf_type.get_by_custom_id(custom_id_field="some-field", custom_id="a/b c&d")
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 1
+    assert requests[0].url.raw_path.decode() == (
+        "/services/data/v59.0/sobjects/Case/some-field/a%2Fb+c%26d"
+    )
+
+
 async def test_get_by_custom_id_404(httpx_mock: HTTPXMock):
     """Ensure get_by_custom_id raises SalesforceResourceNotFound on 404"""
     httpx_mock.add_response(status_code=404, content=b"{}")
